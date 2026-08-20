@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,6 +19,7 @@ export default function Login() {
         try {
             setCarregando(true);
             await login(email, senha);
+            Alert.alert('Sucesso', 'Login realizado com sucesso!');
         } catch (error: any) {
             Alert.alert('Erro', 'E-mail ou senha incorretos.');
         } finally {
@@ -27,49 +28,48 @@ export default function Login() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-background justify-center px-6">
+        <SafeAreaView style={styles.container}>
 
             {/* Título */}
-            <View className="items-center mb-8">
-                <Text className="text-3xl font-bold text-indigo-PRIMARY">Indigo Finance</Text>
-                <Text className="text-variant text-base">Controle Financeiro Mobile</Text>
+            <View style={styles.header}>
+                <Text style={styles.tituloApp}>Indigo Finance</Text>
+                <Text style={styles.subtituloApp}>Controle Financeiro Mobile</Text>
             </View>
 
             {/* Formulário */}
-            <View className="bg-surface p-6 rounded-2xl border border-slate-200">
-                <Text className="text-lg font-semibold text-slate-800 mb-4">Entrar</Text>
+            <View style={styles.card}>
+                <Text style={styles.tituloCard}>Entrar</Text>
 
-                {/* E-mail */}
-                <Text className="text-sm text-slate-600 mb-1">E-mail</Text>
+                <Text style={styles.label}>E-mail</Text>
                 <TextInput
-                    className="bg-slate-100 p-3 rounded-xl mb-4 text-slate-800"
+                    style={styles.input}
                     placeholder="seu@email.com"
+                    placeholderTextColor="#94a3b8"
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
                     keyboardType="email-address"
                 />
 
-                {/* Senha */}
-                <Text className="text-sm text-slate-600 mb-1">Senha</Text>
+                <Text style={styles.label}>Senha</Text>
                 <TextInput
-                    className="bg-slate-100 p-3 rounded-xl mb-6 text-slate-800"
+                    style={styles.input}
                     placeholder="••••••••"
+                    placeholderTextColor="#94a3b8"
                     value={senha}
                     onChangeText={setSenha}
                     secureTextEntry
                 />
 
-                {/* Botão */}
                 <TouchableOpacity
-                    className="bg-indigo-PRIMARY p-4 rounded-xl items-center"
+                    style={styles.botao}
                     onPress={handleLogin}
                     disabled={carregando}
                 >
                     {carregando ? (
-                        <ActivityIndicator color="#FFF" />
+                        <ActivityIndicator color="#ffffff" />
                     ) : (
-                        <Text className="text-white font-bold text-base">Entrar</Text>
+                        <Text style={styles.textoBotao}>Entrar</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -77,3 +77,68 @@ export default function Login() {
         </SafeAreaView>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fcf8ff',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+    },
+    header: {
+        alignItems: 'center',
+        marginBottom: 32,
+    },
+    tituloApp: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#4f46e5',
+    },
+    subtituloApp: {
+        fontSize: 16,
+        color: '#64748b',
+        marginTop: 4,
+    },
+    card: {
+        backgroundColor: '#ffffff',
+        padding: 24,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        elevation: 2,
+    },
+    tituloCard: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#0f172a',
+        marginBottom: 16,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#334155',
+        marginBottom: 6,
+    },
+    input: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        borderRadius: 10,
+        padding: 12,
+        fontSize: 16,
+        color: '#0f172a',
+        marginBottom: 16,
+    },
+    botao: {
+        backgroundColor: '#4f46e5',
+        paddingVertical: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    textoBotao: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+});
