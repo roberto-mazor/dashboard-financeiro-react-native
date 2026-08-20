@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { router } from 'expo-router';
+
 import * as SecureStore from 'expo-secure-store';
+
 import { Wallet, PieChart, ShieldCheck } from 'lucide-react-native';
 
 // Dados das 3 Splash Screens baseadas no seu Figma
@@ -11,19 +21,22 @@ const PASSOS = [
     id: 1,
     icone: Wallet,
     titulo: 'Controle Total',
-    descricao: 'Acompanhe suas receitas, despesas e saldo em tempo real em um só lugar.',
+    descricao:
+      'Acompanhe suas receitas, despesas e saldo em tempo real em um só lugar.',
   },
   {
     id: 2,
     icone: PieChart,
     titulo: 'Gráficos Inteligentes',
-    descricao: 'Visualize para onde vai o seu dinheiro com relatórios simples e intuitivos.',
+    descricao:
+      'Visualize para onde vai o seu dinheiro com relatórios simples e intuitivos.',
   },
   {
     id: 3,
     icone: ShieldCheck,
     titulo: 'Cartões & Limites',
-    descricao: 'Gerencie seus cartões de crédito e simule vínculos bancários com facilidade.',
+    descricao:
+      'Gerencie seus cartões de crédito e simule vínculos bancários com facilidade.',
   },
 ];
 
@@ -32,7 +45,11 @@ export default function Onboarding() {
 
   async function concluirOnboarding() {
     // Salva que o usuário já viu as Splash Screens
-    await SecureStore.setItemAsync('@IndigoFinance:onboarding_visto', 'true');
+    await SecureStore.setItemAsync(
+      '@IndigoFinance:onboarding_visto',
+      'true'
+    );
+
     // Navega para a tela de Login
     router.replace('/login');
   }
@@ -49,55 +66,150 @@ export default function Onboarding() {
   const Icone = Item.icone;
 
   return (
-    <SafeAreaView className="flex-1 bg-background justify-between p-6">
-      
+    <SafeAreaView style={styles.container}>
       {/* Botão Pular */}
-      <View className="items-end">
+      <View style={styles.skipContainer}>
         <TouchableOpacity onPress={concluirOnboarding}>
-          <Text className="text-variant text-sm font-semibold">Pular</Text>
+          <Text style={styles.skipText}>Pular</Text>
         </TouchableOpacity>
       </View>
 
       {/* Conteúdo Central da Splash Screen */}
-      <View className="items-center px-4">
-        <View className="w-24 h-24 bg-indigo-PRIMARY/10 rounded-full items-center justify-center mb-8">
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
           <Icone size={48} color="#4f46e5" />
         </View>
 
-        <Text className="text-2xl font-bold text-slate-900 text-center mb-3">
+        <Text style={styles.title}>
           {Item.titulo}
         </Text>
 
-        <Text className="text-base text-variant text-center leading-6">
+        <Text style={styles.description}>
           {Item.descricao}
         </Text>
       </View>
 
       {/* Rodapé: Indicadores de Páginas e Botão Próximo */}
-      <View className="mb-6">
-        {/* Indicadores (3 Pontinhos) */}
-        <View className="flex-row justify-center mb-8">
+      <View style={styles.footer}>
+        {/* Indicadores */}
+        <View style={styles.indicators}>
           {PASSOS.map((_, index) => (
             <View
               key={index}
-              className={`h-2 rounded-full mx-1 ${
-                index === passoAtual ? 'w-8 bg-indigo-PRIMARY' : 'w-2 bg-slate-300'
-              }`}
+              style={[
+                styles.indicator,
+                index === passoAtual
+                  ? styles.activeIndicator
+                  : styles.inactiveIndicator,
+              ]}
             />
           ))}
         </View>
 
         {/* Botão Avançar */}
         <TouchableOpacity
-          className="bg-indigo-PRIMARY py-4 rounded-xl items-center"
+          style={styles.nextButton}
           onPress={proximoPasso}
         >
-          <Text className="text-white font-bold text-base">
-            {passoAtual === PASSOS.length - 1 ? 'Começar' : 'Próximo'}
+          <Text style={styles.nextButtonText}>
+            {passoAtual === PASSOS.length - 1
+              ? 'Começar'
+              : 'Próximo'}
           </Text>
         </TouchableOpacity>
       </View>
-
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#faf8ff',
+    justifyContent: 'space-between',
+    padding: 24,
+  },
+
+  // Botão Pular
+  skipContainer: {
+    alignItems: 'flex-end',
+  },
+
+  skipText: {
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Conteúdo central
+  content: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+
+  iconContainer: {
+    width: 96,
+    height: 96,
+    backgroundColor: '#eef2ff',
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+
+  title: {
+    color: '#0f172a',
+    fontSize: 24,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+
+  description: {
+    color: '#64748b',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+
+  // Rodapé
+  footer: {
+    marginBottom: 24,
+  },
+
+  indicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+
+  indicator: {
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+
+  activeIndicator: {
+    width: 32,
+    backgroundColor: '#4f46e5',
+  },
+
+  inactiveIndicator: {
+    width: 8,
+    backgroundColor: '#cbd5e1',
+  },
+
+  // Botão próximo
+  nextButton: {
+    backgroundColor: '#4f46e5',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+
+  nextButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
