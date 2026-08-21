@@ -3,6 +3,9 @@ import * as SecureStore from 'expo-secure-store';
 import { api } from '@/services/api';
 import { Usuario, AuthContextData } from '../@types/auth';
 
+const TOKEN_KEY = 'indigo_finance_token';
+const USUARIO_KEY = 'indigo_finance_usuario';
+
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -13,8 +16,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         async function carregarDadosSalvos() {
             try {
-                const tokenSalvo = await SecureStore.getItemAsync('@IndigoFinance:token');
-                const usuarioSalvo = await SecureStore.getItemAsync('@IndigoFinance:usuario');
+                const tokenSalvo = await SecureStore.getItemAsync(TOKEN_KEY);
+                const usuarioSalvo = await SecureStore.getItemAsync(USUARIO_KEY);
 
                 if (tokenSalvo && usuarioSalvo) {
                     api.defaults.headers.common['Authorization'] = `Bearer ${tokenSalvo}`;
@@ -31,29 +34,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         carregarDadosSalvos();
     }, []);
 
-    const login = async (email: string, senha_hash: string) => {
-        // Rota de login configurada na sua API
-        const resposta = await api.post('/auth/login', { email, senha_hash });
-        const { token: tokenRecebido, usuario: usuarioRecebido } = resposta.data;
+    const login = async (email: string, senha: string) => {
+        try {
+            const emailFormatado = email.trim().toLowerCase();
+            const senhaFormatada = senha.trim();
 
-        setToken(tokenRecebido);
-        setUsuario(usuarioRecebido);
+            const resposta = await api.post('/auth/login', {
+                email: emailFormatado,
+                senha: senhaFormatada,
+                senha_hash: senhaFormatada,
+            });
 
-        // Injeta o token padrão nas requisições do Axios
-        api.defaults.headers.common['Authorization'] = `Bearer ${tokenRecebido}`;
+            const { token: tokenRecebido, usuario: usuarioRecebido, user } = resposta.data;
+            const dadosUsuario = usuarioRecebido || user;
 
-        // Salva no dispositivo
-        await SecureStore.setItemAsync('@IndigoFinance:token', tokenRecebido);
-        await SecureStore.setItemAsync('@IndigoFinance:usuario', JSON.stringify(usuarioRecebido));
+            api.defaults.headers.common['Authorization'] = `Bearer ${tokenRecebido}`;
+
+            await SecureStore.setItemAsync(TOKEN_KEY, tokenRecebido);
+            await SecureStore.setItemAsync(USUARIO_KEY, JSON.stringify(dadosUsuario));
+
+            setToken(tokenRecebido);
+            setUsuario(dadosUsuario);
+        } catch (error: any) {
+            console.error('Erro detalhado no login:', error.response?.data || error.message);
+            throw error;
+        }
     };
 
     const logout = async () => {
-        await SecureStore.deleteItemAsync('@IndigoFinance:token');
-        await SecureStore.deleteItemAsync('@IndigoFinance:usuario');
-
-        delete api.defaults.headers.common['Authorization'];
-        setToken(null);
-        setUsuario(null);
+        try {
+            await SecureStore.deleteItemAsync(TOKEN_KEY);
+            await SecureStore.deleteItemAsync(USUARIO_KEY);
+        } catch (error) {
+            console.error('Erro ao remover dados de autenticação:', error);
+        } finally {
+            delete api.defaults.headers.common['Authorization'];
+            setToken(null);
+            setUsuario(null);
+        }
     };
 
     return (

@@ -33,7 +33,7 @@ export default function RootLayout() {
       />
 
       <Tabs.Screen
-        name="trasacoes"
+        name="transacoes"
         options={{
           title: 'Transações',
           tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size}/>,

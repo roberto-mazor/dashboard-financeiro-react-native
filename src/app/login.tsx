@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -19,9 +20,11 @@ export default function Login() {
         try {
             setCarregando(true);
             await login(email, senha);
-            Alert.alert('Sucesso', 'Login realizado com sucesso!');
+            // Redireciona diretamente para o index do grupo de tabs
+            router.replace('/(tabs)');
         } catch (error: any) {
-            Alert.alert('Erro', 'E-mail ou senha incorretos.');
+            const mensagemBackend = error.response?.data?.error || error.response?.data?.message;
+            Alert.alert('Erro ao entrar', mensagemBackend || 'Verifique seus dados ou a conexão com a API.');
         } finally {
             setCarregando(false);
         }
@@ -46,18 +49,20 @@ export default function Login() {
                     placeholder="seu@email.com"
                     placeholderTextColor="#94a3b8"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(texto) => setEmail(texto.trim().toLowerCase())}
                     autoCapitalize="none"
+                    autoCorrect={false}
                     keyboardType="email-address"
                 />
 
-                <Text style={styles.label}>Senha</Text>
                 <TextInput
                     style={styles.input}
                     placeholder="••••••••"
                     placeholderTextColor="#94a3b8"
                     value={senha}
-                    onChangeText={setSenha}
+                    onChangeText={(texto) => setSenha(texto.trim())}
+                    autoCapitalize="none"
+                    autoCorrect={false}
                     secureTextEntry
                 />
 
