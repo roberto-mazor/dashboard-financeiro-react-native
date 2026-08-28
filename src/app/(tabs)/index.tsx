@@ -6,7 +6,7 @@ import {
     ScrollView,
     RefreshControl,
     ActivityIndicator,
-    FlatList,
+    TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +18,9 @@ import {
     Wallet,
     TrendingUp,
     TrendingDown,
+    Plus,
 } from 'lucide-react-native';
+import { ModalTransacao } from '@/components/ModalTransacao';
 
 interface Transacao {
     id: number | string;
@@ -46,8 +48,8 @@ export default function Dashboard() {
     const [transacoes, setTransacoes] = useState<Transacao[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [atualizando, setAtualizando] = useState(false);
+    const [modalAberto, setModalAberto] = useState(false);
 
-    // Formata valores numéricos para Real (BRL)
     function formatarMoeda(valor: number | string) {
         const numero = Number(valor) || 0;
         return numero.toLocaleString('pt-BR', {
@@ -56,10 +58,8 @@ export default function Dashboard() {
         });
     }
 
-    // Busca dados da API
     async function carregarDados() {
         try {
-            // 1. Busca resumo de totais
             const resResumo = await api.get('/dashboard/resumo');
             if (resResumo.data) {
                 setResumo({
@@ -69,7 +69,6 @@ export default function Dashboard() {
                 });
             }
 
-            // 2. Busca lista de transações recentes (limite de 5)
             const resTransacoes = await api.get('/transacoes?limite=5');
             const lista = resTransacoes.data?.transacoes || resTransacoes.data || [];
             setTransacoes(Array.isArray(lista) ? lista.slice(0, 5) : []);
@@ -81,7 +80,6 @@ export default function Dashboard() {
         }
     }
 
-    // Recarrega sempre que a tela ganha foco
     useFocusEffect(
         useCallback(() => {
             carregarDados();
@@ -100,107 +98,117 @@ export default function Dashboard() {
                     <ActivityIndicator size="large" color="#4f46e5" />
                 </View>
             ) : (
-                <ScrollView
-                    contentContainerStyle={styles.scroll}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={atualizando}
-                            onRefresh={handleRefresh}
-                            colors={['#4f46e5']}
-                        />
-                    }
-                >
-                    {/* Cabeçalho */}
-                    <View style={styles.header}>
-                        <Text style={styles.saudacao}>Bem-vindo de volta,</Text>
-                        <Text style={styles.nomeUsuario}>{usuario?.nome || 'Usuário'}</Text>
-                    </View>
-
-                    {/* Card Principal - Saldo Total */}
-                    <View style={styles.cardSaldo}>
-                        <View style={styles.cardSaldoTopo}>
-                            <Text style={styles.labelSaldo}>Saldo Atual</Text>
-                            <Wallet color="#ffffff" size={24} />
-                        </View>
-                        <Text style={styles.valorSaldo}>
-                            {formatarMoeda(resumo.saldoTotal)}
-                        </Text>
-                    </View>
-
-                    {/* Cards de Entradas e Saídas */}
-                    <View style={styles.linhaCards}>
-                        {/* Card Receitas */}
-                        <View style={[styles.cardPequeno, styles.bordaReceita]}>
-                            <View style={styles.topoCardPequeno}>
-                                <ArrowUpCircle color="#10b981" size={20} />
-                                <Text style={styles.labelPequeno}>Receitas</Text>
-                            </View>
-                            <Text style={styles.valorReceita}>
-                                {formatarMoeda(resumo.totalReceitas)}
-                            </Text>
+                <>
+                    <ScrollView
+                        contentContainerStyle={styles.scroll}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={atualizando}
+                                onRefresh={handleRefresh}
+                                colors={['#4f46e5']}
+                            />
+                        }
+                    >
+                        {/* Cabeçalho */}
+                        <View style={styles.header}>
+                            <Text style={styles.saudacao}>Bem-vindo de volta,</Text>
+                            <Text style={styles.nomeUsuario}>{usuario?.nome || 'Usuário'}</Text>
                         </View>
 
-                        {/* Card Despesas */}
-                        <View style={[styles.cardPequeno, styles.bordaDespesa]}>
-                            <View style={styles.topoCardPequeno}>
-                                <ArrowDownCircle color="#ef4444" size={20} />
-                                <Text style={styles.labelPequeno}>Despesas</Text>
+                        {/* Card Principal */}
+                        <View style={styles.cardSaldo}>
+                            <View style={styles.cardSaldoTopo}>
+                                <Text style={styles.labelSaldo}>Saldo Atual</Text>
+                                <Wallet color="#ffffff" size={24} />
                             </View>
-                            <Text style={styles.valorDespesa}>
-                                {formatarMoeda(resumo.totalDespesas)}
-                            </Text>
+                            <Text style={styles.valorSaldo}>{formatarMoeda(resumo.saldoTotal)}</Text>
                         </View>
-                    </View>
 
-                    {/* Lista de Transações Recentes */}
-                    <View style={styles.secao}>
-                        <Text style={styles.tituloSecao}>Últimas Transações</Text>
-
-                        {transacoes.length === 0 ? (
-                            <View style={styles.cardVazio}>
-                                <Text style={styles.textoVazio}>Nenhuma transação registrada ainda.</Text>
+                        {/* Cards de Entradas e Saídas */}
+                        <View style={styles.linhaCards}>
+                            <View style={[styles.cardPequeno, styles.bordaReceita]}>
+                                <View style={styles.topoCardPequeno}>
+                                    <ArrowUpCircle color="#10b981" size={20} />
+                                    <Text style={styles.labelPequeno}>Receitas</Text>
+                                </View>
+                                <Text style={styles.valorReceita}>{formatarMoeda(resumo.totalReceitas)}</Text>
                             </View>
-                        ) : (
-                            transacoes.map((item) => {
-                                const ehReceita = item.tipo === 'receita';
-                                return (
-                                    <View key={item.id} style={styles.itemTransacao}>
-                                        <View style={styles.transacaoEsquerda}>
-                                            <View
+
+                            <View style={[styles.cardPequeno, styles.bordaDespesa]}>
+                                <View style={styles.topoCardPequeno}>
+                                    <ArrowDownCircle color="#ef4444" size={20} />
+                                    <Text style={styles.labelPequeno}>Despesas</Text>
+                                </View>
+                                <Text style={styles.valorDespesa}>{formatarMoeda(resumo.totalDespesas)}</Text>
+                            </View>
+                        </View>
+
+                        {/* Lista de Transações Recentes */}
+                        <View style={styles.secao}>
+                            <Text style={styles.tituloSecao}>Últimas Transações</Text>
+
+                            {transacoes.length === 0 ? (
+                                <View style={styles.cardVazio}>
+                                    <Text style={styles.textoVazio}>Nenhuma transação registrada ainda.</Text>
+                                </View>
+                            ) : (
+                                transacoes.map((item) => {
+                                    const ehReceita = item.tipo === 'receita';
+                                    return (
+                                        <View key={item.id} style={styles.itemTransacao}>
+                                            <View style={styles.transacaoEsquerda}>
+                                                <View
+                                                    style={[
+                                                        styles.iconeTipo,
+                                                        ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone,
+                                                    ]}
+                                                >
+                                                    {ehReceita ? (
+                                                        <TrendingUp size={18} color="#10b981" />
+                                                    ) : (
+                                                        <TrendingDown size={18} color="#ef4444" />
+                                                    )}
+                                                </View>
+                                                <View>
+                                                    <Text style={styles.descricaoTransacao}>{item.descricao}</Text>
+                                                    <Text style={styles.categoriaTransacao}>
+                                                        {item.categoria || (ehReceita ? 'Entrada' : 'Saída')}
+                                                    </Text>
+                                                </View>
+                                            </View>
+
+                                            <Text
                                                 style={[
-                                                    styles.iconeTipo,
-                                                    ehReceita ? styles.bgReceita : styles.bgDespesa,
+                                                    styles.valorTransacao,
+                                                    ehReceita ? styles.textoVerde : styles.textoVermelho,
                                                 ]}
                                             >
-                                                {ehReceita ? (
-                                                    <TrendingUp size={18} color="#10b981" />
-                                                ) : (
-                                                    <TrendingDown size={18} color="#ef4444" />
-                                                )}
-                                            </View>
-                                            <View>
-                                                <Text style={styles.descricaoTransacao}>{item.descricao}</Text>
-                                                <Text style={styles.categoriaTransacao}>
-                                                    {item.categoria || (ehReceita ? 'Entrada' : 'Saída')}
-                                                </Text>
-                                            </View>
+                                                {ehReceita ? '+ ' : '- '}
+                                                {formatarMoeda(item.valor)}
+                                            </Text>
                                         </View>
+                                    );
+                                })
+                            )}
+                        </View>
+                    </ScrollView>
 
-                                        <Text
-                                            style={[
-                                                styles.valorTransacao,
-                                                ehReceita ? styles.textoVerde : styles.textoVermelho,
-                                            ]}
-                                        >
-                                            {ehReceita ? '+ ' : '- '}
-                                            {formatarMoeda(item.valor)}
-                                        </Text>
-                                    </View>
-                                );
-                            })
-                        )}
-                    </View>
-                </ScrollView>
+                    {/* Botão de Ação Flutuante (FAB) */}
+                    <TouchableOpacity
+                        style={styles.fab}
+                        onPress={() => setModalAberto(true)}
+                        activeOpacity={0.85}
+                    >
+                        <Plus color="#ffffff" size={28} />
+                    </TouchableOpacity>
+
+                    {/* Modal de Criação */}
+                    <ModalTransacao
+                        visivel={modalAberto}
+                        aoFechar={() => setModalAberto(false)}
+                        aoSalvarSucesso={carregarDados}
+                    />
+                </>
             )}
         </SafeAreaView>
     );
@@ -218,7 +226,7 @@ const styles = StyleSheet.create({
     },
     scroll: {
         padding: 20,
-        paddingBottom: 40,
+        paddingBottom: 90, // Espaço para não cobrir o FAB
     },
     header: {
         marginBottom: 20,
@@ -343,10 +351,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    bgReceita: {
+    bgReceitaIcone: {
         backgroundColor: '#dcfce7',
     },
-    bgDespesa: {
+    bgDespesaIcone: {
         backgroundColor: '#fee2e2',
     },
     descricaoTransacao: {
@@ -368,5 +376,21 @@ const styles = StyleSheet.create({
     },
     textoVermelho: {
         color: '#ef4444',
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 24,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#4f46e5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 6,
+        shadowColor: '#4f46e5',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 5,
     },
 });
