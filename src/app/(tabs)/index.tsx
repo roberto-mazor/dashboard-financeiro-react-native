@@ -24,11 +24,15 @@ import { ModalTransacao } from '@/components/ModalTransacao';
 
 interface Transacao {
     id: number | string;
+    id_transacao?: number | string;
     descricao: string;
     valor: number | string;
-    tipo: 'receita' | 'despesa';
-    data: string;
-    categoria?: string;
+    tipo?: string;
+    tipo_transacao?: string;
+    data?: string;
+    data_transacao?: string;
+    categoria?: string | { nome?: string; tipo?: string; status?: string };
+    nome_categoria?: string;
 }
 
 interface ResumoFinanceiro {
@@ -58,6 +62,20 @@ export default function Dashboard() {
         });
     }
 
+    function extrairNomeCategoria(item: Transacao): string {
+        if (typeof item.categoria === 'string' && item.categoria.trim()) {
+            return item.categoria;
+        }
+        if (typeof item.categoria === 'object' && item.categoria?.nome) {
+            return item.categoria.nome;
+        }
+        if (item.nome_categoria) {
+            return item.nome_categoria;
+        }
+        const t = String(item.tipo || item.tipo_transacao || '').toLowerCase();
+        return t === 'receita' ? 'Entrada' : 'Saída';
+    }
+
     async function carregarDados() {
         try {
             let saldoCalculado = 0;
@@ -66,41 +84,49 @@ export default function Dashboard() {
 
             // 1. Busca lista de transações
             const resTransacoes = await api.get('/transacoes');
-            const listaCompleta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
+            const lista: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
 
-            if (Array.isArray(listaCompleta)) {
-                setTransacoes(listaCompleta.slice(0, 5));
+            if (Array.isArray(lista)) {
+                setTransacoes(lista.slice(0, 10));
 
-                // Calcula os totais com base nas transações reais
-                listaCompleta.forEach((item) => {
-                    const val = Number(item.valor) || 0;
-                    if (item.tipo === 'receita') {
+                lista.forEach((item: any) => {
+                    const val = Math.abs(Number(item.valor)) || 0;
+                    const t = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+
+                    if (t === 'receita') {
                         receitasCalculadas += val;
                     } else {
                         despesasCalculadas += val;
                     }
                 });
+
                 saldoCalculado = receitasCalculadas - despesasCalculadas;
             }
 
-            // 2. Tenta obter o resumo do backend ou usa os dados calculados
+            // 2. Busca resumo da API
             try {
                 const resResumo = await api.get('/dashboard/resumo');
-                if (resResumo.data) {
-                    setResumo({
-                        saldoTotal: Number(resResumo.data.saldoTotal ?? resResumo.data.saldo ?? saldoCalculado),
-                        totalReceitas: Number(resResumo.data.totalReceitas ?? resResumo.data.receitas ?? receitasCalculadas),
-                        totalDespesas: Number(resResumo.data.totalDespesas ?? resResumo.data.despesas ?? despesasCalculadas),
-                    });
-                } else {
+                const d = resResumo.data || {};
+
+                const recApi = Number(d.totalReceitas ?? d.total_receitas ?? d.receitas ?? 0);
+                const despApi = Number(d.totalDespesas ?? d.total_despesas ?? d.despesas ?? 0);
+                const saldoApi = Number(d.saldoTotal ?? d.saldo_atual ?? d.saldo ?? (recApi - despApi));
+
+                // Se a API retornar totais zerados mas houver transações calculadas localmente, usa os calculados
+                if (recApi === 0 && despApi === 0 && (receitasCalculadas > 0 || despesasCalculadas > 0)) {
                     setResumo({
                         saldoTotal: saldoCalculado,
                         totalReceitas: receitasCalculadas,
                         totalDespesas: despesasCalculadas,
                     });
+                } else {
+                    setResumo({
+                        saldoTotal: saldoApi,
+                        totalReceitas: recApi,
+                        totalDespesas: despApi,
+                    });
                 }
             } catch {
-                // Fallback seguro se o endpoint /dashboard/resumo falhar no backend
                 setResumo({
                     saldoTotal: saldoCalculado,
                     totalReceitas: receitasCalculadas,
@@ -150,7 +176,7 @@ export default function Dashboard() {
                             <Text style={styles.nomeUsuario}>{usuario?.nome || 'Usuário'}</Text>
                         </View>
 
-                        {/* Card Principal */}
+                        {/* Card Saldo Atual */}
                         <View style={styles.cardSaldo}>
                             <View style={styles.cardSaldoTopo}>
                                 <Text style={styles.labelSaldo}>Saldo Atual</Text>
@@ -187,10 +213,14 @@ export default function Dashboard() {
                                     <Text style={styles.textoVazio}>Nenhuma transação registrada ainda.</Text>
                                 </View>
                             ) : (
-                                transacoes.map((item) => {
-                                    const ehReceita = item.tipo === 'receita';
+                                transacoes.map((item: any, index) => {
+                                    const tipoItem = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+                                    const ehReceita = tipoItem === 'receita';
+                                    const chaveItem = item.id ?? item.id_transacao ?? index;
+                                    const nomeCategoria = extrairNomeCategoria(item);
+
                                     return (
-                                        <View key={item.id} style={styles.itemTransacao}>
+                                        <View key={chaveItem} style={styles.itemTransacao}>
                                             <View style={styles.transacaoEsquerda}>
                                                 <View
                                                     style={[
@@ -206,9 +236,7 @@ export default function Dashboard() {
                                                 </View>
                                                 <View>
                                                     <Text style={styles.descricaoTransacao}>{item.descricao}</Text>
-                                                    <Text style={styles.categoriaTransacao}>
-                                                        {item.categoria || (ehReceita ? 'Entrada' : 'Saída')}
-                                                    </Text>
+                                                    <Text style={styles.categoriaTransacao}>{nomeCategoria}</Text>
                                                 </View>
                                             </View>
 
@@ -228,7 +256,7 @@ export default function Dashboard() {
                         </View>
                     </ScrollView>
 
-                    {/* Botão de Ação Flutuante (FAB) */}
+                    {/* Botão Flutuante */}
                     <TouchableOpacity
                         style={styles.fab}
                         onPress={() => setModalAberto(true)}
@@ -237,7 +265,7 @@ export default function Dashboard() {
                         <Plus color="#ffffff" size={28} />
                     </TouchableOpacity>
 
-                    {/* Modal de Criação */}
+                    {/* Modal de Nova Transação */}
                     <ModalTransacao
                         visivel={modalAberto}
                         aoFechar={() => setModalAberto(false)}
@@ -261,7 +289,7 @@ const styles = StyleSheet.create({
     },
     scroll: {
         padding: 20,
-        paddingBottom: 90, // Espaço para não cobrir o FAB
+        paddingBottom: 90,
     },
     header: {
         marginBottom: 20,

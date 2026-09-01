@@ -167,13 +167,12 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             return;
         }
 
-        // Obtém o ID garantido
         const idFinalCategoria = categoriaSelecionada
             ? Number(categoriaSelecionada.id ?? (categoriaSelecionada as any).id_categoria)
             : null;
 
         if (!categoriaSelecionada || !idFinalCategoria || isNaN(idFinalCategoria)) {
-            Alert.alert('Atenção', 'Toque em um dos botões de categoria abaixo para selecioná-la.');
+            Alert.alert('Atenção', 'Selecione uma categoria.');
             return;
         }
 
@@ -183,17 +182,19 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             const hoje = new Date();
             const dataFormatada = hoje.toISOString().split('T')[0];
 
-            // Envia os campos no padrão do transacaoController do backend
+            // Envia o tipo rigorosamente em minúsculas baseado no botão ativo
             const payload = {
                 descricao: descricao.trim(),
                 valor: valorNumerico,
-                tipo: tipo.toLowerCase(),
+                tipo: tipo.toLowerCase(), // 'receita' ou 'despesa'
                 id_categoria: idFinalCategoria,
                 categoria_id: idFinalCategoria,
                 data_transacao: dataFormatada,
                 data: dataFormatada,
                 id_cartao: null,
             };
+
+            console.log('Enviando payload:', payload);
 
             await api.post('/transacoes', payload);
 
