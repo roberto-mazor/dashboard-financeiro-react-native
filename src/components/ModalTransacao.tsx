@@ -20,7 +20,8 @@ import { X, TrendingUp, TrendingDown, Tag, Plus, Check } from 'lucide-react-nati
 interface Categoria {
     id: number;
     nome: string;
-    tipo?: 'receita' | 'despesa';
+    tipo?: string;
+    id_categoria?: number;
 }
 
 interface ModalTransacaoProps {
@@ -49,19 +50,30 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
         }
     }, [visivel]);
 
+    // Ao alternar tipo, reseta seleção e busca novamente
     useEffect(() => {
         setCategoriaSelecionada(null);
         setCriandoCategoria(false);
         setNomeNovaCategoria('');
+        if (visivel) {
+            buscarCategorias();
+        }
     }, [tipo]);
 
     async function buscarCategorias() {
         try {
             setCarregandoCategorias(true);
             const res = await api.get('/categorias');
-            const lista = res.data?.categorias || res.data || [];
-            if (Array.isArray(lista)) {
-                setCategorias(lista);
+            const listaBruta = res.data?.categorias || res.data || [];
+
+            if (Array.isArray(listaBruta)) {
+                // Normaliza para garantir que o ID exista independente do nome da coluna (id ou id_categoria)
+                const listaNormalizada: Categoria[] = listaBruta.map((cat: any) => ({
+                    id: Number(cat.id ?? cat.id_categoria),
+                    nome: cat.nome || cat.descricao || 'Sem nome',
+                    tipo: (cat.tipo || '').toLowerCase(),
+                }));
+                setCategorias(listaNormalizada);
             }
         } catch (error: any) {
             console.error('Erro ao buscar categorias:', error.response?.data || error.message);
@@ -71,34 +83,52 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
     }
 
     async function handleAdicionarCategoria() {
-        if (!nomeNovaCategoria.trim()) {
+        const nomeLimpo = nomeNovaCategoria.trim();
+        if (!nomeLimpo) {
             Alert.alert('Atenção', 'Digite o nome da categoria.');
+            return;
+        }
+
+        // Se já estiver na lista, seleciona direto
+        const jaExiste = categorias.find(
+            (c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase()
+        );
+        if (jaExiste) {
+            setCategoriaSelecionada(jaExiste);
+            setNomeNovaCategoria('');
+            setCriandoCategoria(false);
             return;
         }
 
         try {
             setSalvandoNovaCat(true);
-            // Salva diretamente no banco via API
             const res = await api.post('/categorias', {
-                nome: nomeNovaCategoria.trim(),
-                tipo: tipo,
+                nome: nomeLimpo,
+                tipo: tipo.toLowerCase(),
             });
 
-            const nova = res.data?.categoria || res.data;
+            const retorno = res.data?.categoria || res.data;
+            const novaId = Number(retorno?.id ?? retorno?.id_categoria ?? Date.now());
 
-            if (nova && nova.id) {
-                setCategorias((prev) => [...prev, nova]);
-                setCategoriaSelecionada(nova);
-                setNomeNovaCategoria('');
-                setCriandoCategoria(false);
-                Alert.alert('Sucesso', `Categoria "${nova.nome}" criada com sucesso!`);
-            } else {
-                await buscarCategorias();
-                setCriandoCategoria(false);
-            }
+            const novaCat: Categoria = {
+                id: novaId,
+                nome: retorno?.nome || nomeLimpo,
+                tipo: tipo.toLowerCase(),
+            };
+
+            setCategorias((prev) => [novaCat, ...prev]);
+            setCategoriaSelecionada(novaCat);
+            setNomeNovaCategoria('');
+            setCriandoCategoria(false);
+            Alert.alert('Sucesso', `Categoria "${novaCat.nome}" cadastrada!`);
         } catch (error: any) {
-            const msg = error.response?.data?.error || error.response?.data?.message || 'Erro ao criar categoria no servidor.';
-            Alert.alert('Erro', msg);
+            await buscarCategorias();
+            const encontrada = categorias.find((c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase());
+            if (encontrada) {
+                setCategoriaSelecionada(encontrada);
+            }
+            setNomeNovaCategoria('');
+            setCriandoCategoria(false);
         } finally {
             setSalvandoNovaCat(false);
         }
@@ -124,45 +154,69 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             return;
         }
 
-        const valorNumerico = parseFloat(valor.replace(',', '.'));
+        let valorLimpo = valor.trim();
+        if (valorLimpo.includes(',') && valorLimpo.includes('.')) {
+            valorLimpo = valorLimpo.replace(/\./g, '').replace(',', '.');
+        } else if (valorLimpo.includes(',')) {
+            valorLimpo = valorLimpo.replace(',', '.');
+        }
+
+        const valorNumerico = parseFloat(valorLimpo);
         if (isNaN(valorNumerico) || valorNumerico <= 0) {
-            Alert.alert('Atenção', 'Digite um valor numérico válido maior que zero.');
+            Alert.alert('Atenção', 'Digite um valor numérico válido.');
             return;
         }
 
-        if (!categoriaSelecionada) {
-            Alert.alert('Atenção', 'Selecione uma categoria existente ou crie uma nova no botão "+ Nova".');
+        // Obtém o ID garantido
+        const idFinalCategoria = categoriaSelecionada
+            ? Number(categoriaSelecionada.id ?? (categoriaSelecionada as any).id_categoria)
+            : null;
+
+        if (!categoriaSelecionada || !idFinalCategoria || isNaN(idFinalCategoria)) {
+            Alert.alert('Atenção', 'Toque em um dos botões de categoria abaixo para selecioná-la.');
             return;
         }
 
         try {
             setSalvando(true);
 
-            // Envia o payload no formato exato esperado pelo backend
-            await api.post('/transacoes', {
+            const hoje = new Date();
+            const dataFormatada = hoje.toISOString().split('T')[0];
+
+            // Envia os campos no padrão do transacaoController do backend
+            const payload = {
                 descricao: descricao.trim(),
                 valor: valorNumerico,
-                tipo,
-                categoria_id: categoriaSelecionada.id,
-                id_categoria: categoriaSelecionada.id,
-                data: new Date().toISOString().split('T')[0],
-            });
+                tipo: tipo.toLowerCase(),
+                id_categoria: idFinalCategoria,
+                categoria_id: idFinalCategoria,
+                data_transacao: dataFormatada,
+                data: dataFormatada,
+                id_cartao: null,
+            };
+
+            await api.post('/transacoes', payload);
 
             Alert.alert('Sucesso', 'Transação registrada com sucesso!');
             resetar();
             aoSalvarSucesso();
             aoFechar();
         } catch (error: any) {
-            const msg = error.response?.data?.error || error.response?.data?.message || 'Erro ao salvar transação.';
+            console.error('Erro ao salvar transação:', error.response?.data || error.message);
+            const msg =
+                error.response?.data?.error ||
+                error.response?.data?.message ||
+                'Erro ao salvar transação no servidor.';
             Alert.alert('Erro', msg);
         } finally {
             setSalvando(false);
         }
     }
 
-    const categoriasFiltradas = categorias.filter(
-        (c) => !c.tipo || c.tipo === tipo
-    );
+    const categoriasFiltradas = categorias.filter((c) => {
+        if (!c.tipo) return true;
+        return c.tipo.toLowerCase() === tipo.toLowerCase();
+    });
 
     return (
         <Modal visible={visivel} transparent animationType="slide" onRequestClose={aoFechar}>
@@ -242,14 +296,14 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 onChangeText={setValor}
                             />
 
-                            {/* Cabeçalho de Categoria */}
+                            {/* Cabeçalho de Categorias */}
                             <View style={styles.categoriaHeader}>
                                 <Text style={styles.label}>
                                     Categoria *{' '}
                                     {categoriaSelecionada ? (
                                         <Text style={styles.textoSelecionada}>({categoriaSelecionada.nome})</Text>
                                     ) : (
-                                        <Text style={styles.textoObrigatorio}>(Selecione abaixo)</Text>
+                                        <Text style={styles.textoObrigatorio}>(Toque em uma)</Text>
                                     )}
                                 </Text>
 
@@ -264,12 +318,12 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Formulário Inline de Nova Categoria */}
+                            {/* Input Nova Categoria */}
                             {criandoCategoria && (
                                 <View style={styles.boxNovaCat}>
                                     <TextInput
                                         style={styles.inputNovaCat}
-                                        placeholder="Nome da categoria (Ex: Alimentação)"
+                                        placeholder="Nome da categoria (Ex: Vendas)"
                                         placeholderTextColor="#94a3b8"
                                         value={nomeNovaCategoria}
                                         onChangeText={setNomeNovaCategoria}
@@ -288,13 +342,13 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </View>
                             )}
 
-                            {/* Lista de Categorias Reais do Banco */}
+                            {/* Grade de Categorias */}
                             {carregandoCategorias ? (
                                 <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 12 }} />
                             ) : categoriasFiltradas.length === 0 ? (
                                 <View style={styles.boxSemCategorias}>
                                     <Text style={styles.textoSemCategorias}>
-                                        Nenhuma categoria de {tipo} encontrada. Clique em "+ Nova" acima para criar a primeira!
+                                        Nenhuma categoria de {tipo} cadastrada. Clique em "+ Nova" para adicionar.
                                     </Text>
                                 </View>
                             ) : (
@@ -513,12 +567,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     boxSemCategorias: {
+        width: '100%',
         padding: 14,
         backgroundColor: '#f8fafc',
         borderRadius: 10,
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        marginBottom: 16,
     },
     textoSemCategorias: {
         color: '#64748b',

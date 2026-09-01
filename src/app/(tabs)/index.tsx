@@ -60,18 +60,53 @@ export default function Dashboard() {
 
     async function carregarDados() {
         try {
-            const resResumo = await api.get('/dashboard/resumo');
-            if (resResumo.data) {
-                setResumo({
-                    saldoTotal: Number(resResumo.data.saldoTotal ?? resResumo.data.saldo ?? 0),
-                    totalReceitas: Number(resResumo.data.totalReceitas ?? resResumo.data.receitas ?? 0),
-                    totalDespesas: Number(resResumo.data.totalDespesas ?? resResumo.data.despesas ?? 0),
+            let saldoCalculado = 0;
+            let receitasCalculadas = 0;
+            let despesasCalculadas = 0;
+
+            // 1. Busca lista de transações
+            const resTransacoes = await api.get('/transacoes');
+            const listaCompleta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
+
+            if (Array.isArray(listaCompleta)) {
+                setTransacoes(listaCompleta.slice(0, 5));
+
+                // Calcula os totais com base nas transações reais
+                listaCompleta.forEach((item) => {
+                    const val = Number(item.valor) || 0;
+                    if (item.tipo === 'receita') {
+                        receitasCalculadas += val;
+                    } else {
+                        despesasCalculadas += val;
+                    }
                 });
+                saldoCalculado = receitasCalculadas - despesasCalculadas;
             }
 
-            const resTransacoes = await api.get('/transacoes?limite=5');
-            const lista = resTransacoes.data?.transacoes || resTransacoes.data || [];
-            setTransacoes(Array.isArray(lista) ? lista.slice(0, 5) : []);
+            // 2. Tenta obter o resumo do backend ou usa os dados calculados
+            try {
+                const resResumo = await api.get('/dashboard/resumo');
+                if (resResumo.data) {
+                    setResumo({
+                        saldoTotal: Number(resResumo.data.saldoTotal ?? resResumo.data.saldo ?? saldoCalculado),
+                        totalReceitas: Number(resResumo.data.totalReceitas ?? resResumo.data.receitas ?? receitasCalculadas),
+                        totalDespesas: Number(resResumo.data.totalDespesas ?? resResumo.data.despesas ?? despesasCalculadas),
+                    });
+                } else {
+                    setResumo({
+                        saldoTotal: saldoCalculado,
+                        totalReceitas: receitasCalculadas,
+                        totalDespesas: despesasCalculadas,
+                    });
+                }
+            } catch {
+                // Fallback seguro se o endpoint /dashboard/resumo falhar no backend
+                setResumo({
+                    saldoTotal: saldoCalculado,
+                    totalReceitas: receitasCalculadas,
+                    totalDespesas: despesasCalculadas,
+                });
+            }
         } catch (error: any) {
             console.error('Erro ao buscar dados do dashboard:', error.response?.data || error.message);
         } finally {
