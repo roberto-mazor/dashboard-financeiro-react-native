@@ -33,13 +33,14 @@ interface ModalTransacaoProps {
 export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTransacaoProps) {
     const [tipo, setTipo] = useState<'receita' | 'despesa'>('receita');
     const [descricao, setDescricao] = useState('');
-    const [valor, setValor] = useState('');
+    const [valorFormatado, setValorFormatado] = useState('0,00');
+    const [valorNumerico, setValorNumerico] = useState(0);
     const [categoriaSelecionada, setCategoriaSelecionada] = useState<Categoria | null>(null);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [carregandoCategorias, setCarregandoCategorias] = useState(false);
     const [salvando, setSalvando] = useState(false);
 
-    // Criação de categoria
+    // Estados de criação de categoria
     const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
     const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
@@ -50,7 +51,6 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
         }
     }, [visivel]);
 
-    // Ao alternar tipo, reseta seleção e busca novamente
     useEffect(() => {
         setCategoriaSelecionada(null);
         setCriandoCategoria(false);
@@ -60,6 +60,31 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
         }
     }, [tipo]);
 
+    // Máscara estilo Nubank (centavos da direita para a esquerda)
+    function handleValorChange(texto: string) {
+        // Remove tudo que não for número
+        const apenasDigitos = texto.replace(/\D/g, '');
+
+        if (!apenasDigitos || apenasDigitos === '0') {
+            setValorFormatado('0,00');
+            setValorNumerico(0);
+            return;
+        }
+
+        // Limita tamanho para evitar overflow (máximo R$ 9.999.999,99)
+        const digitosLimitados = apenasDigitos.slice(0, 10);
+        const centavos = parseInt(digitosLimitados, 10);
+        const numeroReal = centavos / 100;
+
+        setValorNumerico(numeroReal);
+        setValorFormatado(
+            numeroReal.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            })
+        );
+    }
+
     async function buscarCategorias() {
         try {
             setCarregandoCategorias(true);
@@ -67,7 +92,6 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             const listaBruta = res.data?.categorias || res.data || [];
 
             if (Array.isArray(listaBruta)) {
-                // Normaliza para garantir que o ID exista independente do nome da coluna (id ou id_categoria)
                 const listaNormalizada: Categoria[] = listaBruta.map((cat: any) => ({
                     id: Number(cat.id ?? cat.id_categoria),
                     nome: cat.nome || cat.descricao || 'Sem nome',
@@ -89,7 +113,6 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             return;
         }
 
-        // Se já estiver na lista, seleciona direto
         const jaExiste = categorias.find(
             (c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase()
         );
@@ -121,7 +144,7 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             setNomeNovaCategoria('');
             setCriandoCategoria(false);
             Alert.alert('Sucesso', `Categoria "${novaCat.nome}" cadastrada!`);
-        } catch (error: any) {
+        } catch {
             await buscarCategorias();
             const encontrada = categorias.find((c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase());
             if (encontrada) {
@@ -136,7 +159,8 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
 
     function resetar() {
         setDescricao('');
-        setValor('');
+        setValorFormatado('0,00');
+        setValorNumerico(0);
         setCategoriaSelecionada(null);
         setCriandoCategoria(false);
         setNomeNovaCategoria('');
@@ -149,21 +173,8 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             return;
         }
 
-        if (!valor.trim()) {
-            Alert.alert('Atenção', 'Preencha o valor.');
-            return;
-        }
-
-        let valorLimpo = valor.trim();
-        if (valorLimpo.includes(',') && valorLimpo.includes('.')) {
-            valorLimpo = valorLimpo.replace(/\./g, '').replace(',', '.');
-        } else if (valorLimpo.includes(',')) {
-            valorLimpo = valorLimpo.replace(',', '.');
-        }
-
-        const valorNumerico = parseFloat(valorLimpo);
-        if (isNaN(valorNumerico) || valorNumerico <= 0) {
-            Alert.alert('Atenção', 'Digite um valor numérico válido.');
+        if (valorNumerico <= 0) {
+            Alert.alert('Atenção', 'Digite um valor maior que R$ 0,00.');
             return;
         }
 
@@ -182,11 +193,10 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             const hoje = new Date();
             const dataFormatada = hoje.toISOString().split('T')[0];
 
-            // Envia o tipo rigorosamente em minúsculas baseado no botão ativo
             const payload = {
                 descricao: descricao.trim(),
                 valor: valorNumerico,
-                tipo: tipo.toLowerCase(), // 'receita' ou 'despesa'
+                tipo: tipo.toLowerCase(),
                 id_categoria: idFinalCategoria,
                 categoria_id: idFinalCategoria,
                 data_transacao: dataFormatada,
@@ -194,11 +204,9 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                 id_cartao: null,
             };
 
-            console.log('Enviando payload:', payload);
-
             await api.post('/transacoes', payload);
 
-            Alert.alert('Sucesso', 'Transação registrada com sucesso!');
+            Alert.alert('Sucesso', 'Transação cadastrada com sucesso!');
             resetar();
             aoSalvarSucesso();
             aoFechar();
@@ -229,7 +237,7 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                     >
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
 
-                            {/* Topo do Modal */}
+                            {/* Topo */}
                             <View style={styles.topoModal}>
                                 <Text style={styles.tituloModal}>Nova Transação</Text>
                                 <TouchableOpacity onPress={aoFechar} disabled={salvando}>
@@ -237,7 +245,7 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Tipo: Receita / Despesa */}
+                            {/* Botões Tipo */}
                             <View style={styles.containerTipo}>
                                 <TouchableOpacity
                                     style={[
@@ -276,6 +284,19 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </TouchableOpacity>
                             </View>
 
+                            {/* Input de Valor Estilo Nubank */}
+                            <Text style={styles.label}>Valor (R$) *</Text>
+                            <View style={styles.inputValorContainer}>
+                                <Text style={styles.simboloMoeda}>R$</Text>
+                                <TextInput
+                                    style={styles.inputValorTexto}
+                                    value={valorFormatado}
+                                    onChangeText={handleValorChange}
+                                    keyboardType="number-pad"
+                                    selectTextOnFocus
+                                />
+                            </View>
+
                             {/* Descrição */}
                             <Text style={styles.label}>Descrição *</Text>
                             <TextInput
@@ -286,18 +307,7 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 onChangeText={setDescricao}
                             />
 
-                            {/* Valor */}
-                            <Text style={styles.label}>Valor (R$) *</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="0,00"
-                                placeholderTextColor="#94a3b8"
-                                keyboardType="numeric"
-                                value={valor}
-                                onChangeText={setValor}
-                            />
-
-                            {/* Cabeçalho de Categorias */}
+                            {/* Cabeçalho de Categoria */}
                             <View style={styles.categoriaHeader}>
                                 <Text style={styles.label}>
                                     Categoria *{' '}
@@ -474,14 +484,28 @@ const styles = StyleSheet.create({
         color: '#334155',
         marginBottom: 6,
     },
-    textoSelecionada: {
-        color: '#4f46e5',
-        fontWeight: 'bold',
+    inputValorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc',
+        borderWidth: 1.5,
+        borderColor: '#cbd5e1',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        marginBottom: 14,
     },
-    textoObrigatorio: {
-        color: '#ef4444',
-        fontWeight: 'normal',
-        fontSize: 12,
+    simboloMoeda: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#64748b',
+        marginRight: 8,
+    },
+    inputValorTexto: {
+        flex: 1,
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#0f172a',
     },
     input: {
         backgroundColor: '#f8fafc',
@@ -566,6 +590,15 @@ const styles = StyleSheet.create({
     textoChipAtivo: {
         color: '#ffffff',
         fontWeight: 'bold',
+    },
+    textoSelecionada: {
+        color: '#4f46e5',
+        fontWeight: 'bold',
+    },
+    textoObrigatorio: {
+        color: '#ef4444',
+        fontWeight: 'normal',
+        fontSize: 12,
     },
     boxSemCategorias: {
         width: '100%',

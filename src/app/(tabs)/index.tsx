@@ -31,6 +31,8 @@ interface Transacao {
     tipo_transacao?: string;
     data?: string;
     data_transacao?: string;
+    created_at?: string;
+    criado_em?: string;
     categoria?: string | { nome?: string; tipo?: string; status?: string };
     nome_categoria?: string;
 }
@@ -62,6 +64,34 @@ export default function Dashboard() {
         });
     }
 
+    function formatarDataHora(item: Transacao): string {
+        const rawData = item.created_at || item.criado_em || item.data_transacao || item.data;
+        if (!rawData) return '';
+
+        try {
+            const dataObj = new Date(rawData);
+            if (isNaN(dataObj.getTime())) return '';
+
+            const diaMes = dataObj.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+            });
+
+            // Se tiver informação de hora/minuto
+            if (rawData.includes('T') || rawData.includes(':')) {
+                const horaMin = dataObj.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                return `${diaMes} às ${horaMin}`;
+            }
+
+            return diaMes;
+        } catch {
+            return '';
+        }
+    }
+
     function extrairNomeCategoria(item: Transacao): string {
         if (typeof item.categoria === 'string' && item.categoria.trim()) {
             return item.categoria;
@@ -84,12 +114,26 @@ export default function Dashboard() {
 
             // 1. Busca lista de transações
             const resTransacoes = await api.get('/transacoes');
-            const lista: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
+            const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
 
-            if (Array.isArray(lista)) {
-                setTransacoes(lista.slice(0, 10));
+            if (Array.isArray(listaBruta)) {
+                // Ordenação decrescente: por Data/Hora e por ID
+                const listaOrdenada = [...listaBruta].sort((a: any, b: any) => {
+                    const dataA = new Date(a.created_at || a.criado_em || a.data_transacao || a.data || 0).getTime();
+                    const dataB = new Date(b.created_at || b.criado_em || b.data_transacao || b.data || 0).getTime();
 
-                lista.forEach((item: any) => {
+                    if (dataB !== dataA) {
+                        return dataB - dataA;
+                    }
+
+                    const idA = Number(a.id ?? a.id_transacao ?? 0);
+                    const idB = Number(b.id ?? b.id_transacao ?? 0);
+                    return idB - idA;
+                });
+
+                setTransacoes(listaOrdenada.slice(0, 10));
+
+                listaOrdenada.forEach((item: any) => {
                     const val = Math.abs(Number(item.valor)) || 0;
                     const t = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
 
@@ -103,7 +147,7 @@ export default function Dashboard() {
                 saldoCalculado = receitasCalculadas - despesasCalculadas;
             }
 
-            // 2. Busca resumo da API
+            // 2. Resumo
             try {
                 const resResumo = await api.get('/dashboard/resumo');
                 const d = resResumo.data || {};
@@ -112,7 +156,6 @@ export default function Dashboard() {
                 const despApi = Number(d.totalDespesas ?? d.total_despesas ?? d.despesas ?? 0);
                 const saldoApi = Number(d.saldoTotal ?? d.saldo_atual ?? d.saldo ?? (recApi - despApi));
 
-                // Se a API retornar totais zerados mas houver transações calculadas localmente, usa os calculados
                 if (recApi === 0 && despApi === 0 && (receitasCalculadas > 0 || despesasCalculadas > 0)) {
                     setResumo({
                         saldoTotal: saldoCalculado,
@@ -204,7 +247,7 @@ export default function Dashboard() {
                             </View>
                         </View>
 
-                        {/* Lista de Transações Recentes */}
+                        {/* Lista de Transações Ordenada */}
                         <View style={styles.secao}>
                             <Text style={styles.tituloSecao}>Últimas Transações</Text>
 
@@ -218,6 +261,7 @@ export default function Dashboard() {
                                     const ehReceita = tipoItem === 'receita';
                                     const chaveItem = item.id ?? item.id_transacao ?? index;
                                     const nomeCategoria = extrairNomeCategoria(item);
+                                    const dataFormatada = formatarDataHora(item);
 
                                     return (
                                         <View key={chaveItem} style={styles.itemTransacao}>
@@ -236,7 +280,12 @@ export default function Dashboard() {
                                                 </View>
                                                 <View>
                                                     <Text style={styles.descricaoTransacao}>{item.descricao}</Text>
-                                                    <Text style={styles.categoriaTransacao}>{nomeCategoria}</Text>
+                                                    <View style={styles.metaTransacao}>
+                                                        <Text style={styles.categoriaTransacao}>{nomeCategoria}</Text>
+                                                        {dataFormatada ? (
+                                                            <Text style={styles.dataTransacao}> • {dataFormatada}</Text>
+                                                        ) : null}
+                                                    </View>
                                                 </View>
                                             </View>
 
@@ -265,7 +314,7 @@ export default function Dashboard() {
                         <Plus color="#ffffff" size={28} />
                     </TouchableOpacity>
 
-                    {/* Modal de Nova Transação */}
+                    {/* Modal */}
                     <ModalTransacao
                         visivel={modalAberto}
                         aoFechar={() => setModalAberto(false)}
@@ -425,10 +474,18 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#0f172a',
     },
+    metaTransacao: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
     categoriaTransacao: {
         fontSize: 12,
         color: '#64748b',
-        marginTop: 2,
+    },
+    dataTransacao: {
+        fontSize: 11,
+        color: '#94a3b8',
     },
     valorTransacao: {
         fontSize: 15,
