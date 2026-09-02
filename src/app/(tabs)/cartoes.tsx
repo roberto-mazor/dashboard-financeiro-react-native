@@ -10,7 +10,6 @@ import {
     Modal,
     TextInput,
     RefreshControl,
-    Dimensions,
     Platform,
     KeyboardAvoidingView,
     TouchableWithoutFeedback,
@@ -26,31 +25,29 @@ import {
     Calendar,
     ShieldCheck,
     X,
-    Check,
 } from 'lucide-react-native';
 
-const { width } = Dimensions.get('window');
-
 interface CartaoItem {
-    id?: number | string;
-    id_cartao?: number | string;
+    id_cartao: number;
     nome: string;
-    limite: number | string;
+    bandeira: string;
+    limite_total: number | string;
+    limite_disponivel: number | string;
     dia_fechamento: number | string;
     dia_vencimento: number | string;
-    fatura_atual?: number | string;
-    cor?: string;
-    bandeira?: string;
 }
+
+const BANDEIRAS = ['Mastercard', 'Visa', 'Elo', 'Hipercard', 'Amex'];
 
 export default function CartoesScreen() {
     const [cartoes, setCartoes] = useState<CartaoItem[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [atualizando, setAtualizando] = useState(false);
 
-    // Estados do Modal de Novo Cartão
+    // Estados do Modal
     const [modalAberto, setModalAberto] = useState(false);
     const [nomeCartao, setNomeCartao] = useState('');
+    const [bandeiraSelecionada, setBandeiraSelecionada] = useState('Mastercard');
     const [limiteFormatado, setLimiteFormatado] = useState('0,00');
     const [limiteNumerico, setLimiteNumerico] = useState(0);
     const [diaFechamento, setDiaFechamento] = useState('05');
@@ -65,7 +62,6 @@ export default function CartoesScreen() {
         });
     }
 
-    // Máscara Nubank no limite
     function handleLimiteChange(texto: string) {
         const apenasDigitos = texto.replace(/\D/g, '');
         if (!apenasDigitos || apenasDigitos === '0') {
@@ -105,7 +101,7 @@ export default function CartoesScreen() {
 
     async function handleSalvarCartao() {
         if (!nomeCartao.trim()) {
-            Alert.alert('Atenção', 'Digite o nome do cartão (ex: Nubank, Inter).');
+            Alert.alert('Atenção', 'Digite o nome do cartão.');
             return;
         }
 
@@ -131,13 +127,15 @@ export default function CartoesScreen() {
             setSalvando(true);
             await api.post('/cartoes', {
                 nome: nomeCartao.trim(),
-                limite: limiteNumerico,
+                bandeira: bandeiraSelecionada,
+                limite_total: limiteNumerico,
                 dia_fechamento: fechamento,
                 dia_vencimento: vencimento,
             });
 
             Alert.alert('Sucesso', 'Cartão cadastrado com sucesso!');
             setNomeCartao('');
+            setBandeiraSelecionada('Mastercard');
             setLimiteFormatado('0,00');
             setLimiteNumerico(0);
             setDiaFechamento('05');
@@ -152,12 +150,10 @@ export default function CartoesScreen() {
         }
     }
 
-    function handleExcluir(item: CartaoItem) {
-        const idCartao = item.id ?? item.id_cartao;
-
+    function handleExcluir(cartao: CartaoItem) {
         Alert.alert(
             'Remover Cartão',
-            `Tem certeza que deseja apagar o cartão "${item.nome}"?`,
+            `Tem certeza que deseja apagar o cartão "${cartao.nome}"?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -165,8 +161,8 @@ export default function CartoesScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await api.delete(`/cartoes/${idCartao}`);
-                            setCartoes((prev) => prev.filter((c) => (c.id ?? c.id_cartao) !== idCartao));
+                            await api.delete(`/cartoes/${cartao.id_cartao}`);
+                            setCartoes((prev) => prev.filter((c) => c.id_cartao !== cartao.id_cartao));
                             Alert.alert('Sucesso', 'Cartão removido.');
                         } catch (error: any) {
                             const msg = error.response?.data?.error || 'Erro ao excluir o cartão.';
@@ -178,238 +174,260 @@ export default function CartoesScreen() {
         );
     }
 
-return (
-    <SafeAreaView style={styles.container}>
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-            <Text style={styles.titulo}>Meus Cartões</Text>
-            <Text style={styles.subtitulo}>Gestão de limites, faturas e vencimentos</Text>
-        </View>
-
-        {carregando ? (
-            <View style={styles.centroLoading}>
-                <ActivityIndicator size="large" color="#4f46e5" />
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.titulo}>Meus Cartões</Text>
+                <Text style={styles.subtitulo}>Gestão de limites, faturas e vencimentos</Text>
             </View>
-        ) : (
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={atualizando}
-                        onRefresh={() => {
-                            setAtualizando(true);
-                            carregarCartoes();
-                        }}
-                        colors={['#4f46e5']}
-                    />
-                }
-            >
-                {cartoes.length === 0 ? (
-                    <View style={styles.cardVazio}>
-                        <CreditCard size={48} color="#cbd5e1" />
-                        <Text style={styles.textoVazio}>Nenhum cartão de crédito cadastrado.</Text>
-                        <Text style={styles.subtextoVazio}>
-                            Toque no botão abaixo para adicionar seu primeiro cartão.
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.botaoAdicionarVazio}
-                            onPress={() => setModalAberto(true)}
-                        >
-                            <Plus size={18} color="#ffffff" />
-                            <Text style={styles.textoBotaoAdicionarVazio}>Cadastrar Cartão</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    cartoes.map((cartao, index) => {
-                        const chave = cartao.id ?? cartao.id_cartao ?? index;
-                        const limiteTotal = Number(cartao.limite) || 0;
-                        const faturaAtual = Number(cartao.fatura_atual) || 0;
-                        const limiteDisponivel = Math.max(limiteTotal - faturaAtual, 0);
 
-                        const percentualUso = limiteTotal > 0
-                            ? Math.min(Math.round((faturaAtual / limiteTotal) * 100), 100)
-                            : 0;
+            {carregando ? (
+                <View style={styles.centroLoading}>
+                    <ActivityIndicator size="large" color="#4f46e5" />
+                </View>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={atualizando}
+                            onRefresh={() => {
+                                setAtualizando(true);
+                                carregarCartoes();
+                            }}
+                            colors={['#4f46e5']}
+                        />
+                    }
+                >
+                    {cartoes.length === 0 ? (
+                        <View style={styles.cardVazio}>
+                            <CreditCard size={48} color="#cbd5e1" />
+                            <Text style={styles.textoVazio}>Nenhum cartão cadastrado.</Text>
+                            <Text style={styles.subtextoVazio}>
+                                Toque no botão abaixo para cadastrar seu primeiro cartão.
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.botaoAdicionarVazio}
+                                onPress={() => setModalAberto(true)}
+                            >
+                                <Plus size={18} color="#ffffff" />
+                                <Text style={styles.textoBotaoAdicionarVazio}>Cadastrar Cartão</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        cartoes.map((cartao) => {
+                            const limiteTotal = Number(cartao.limite_total) || 0;
+                            const limiteDisp = Number(cartao.limite_disponivel) || 0;
+                            // Fatura atual é a diferença gasta
+                            const faturaAtual = Math.max(limiteTotal - limiteDisp, 0);
 
-                        return (
-                            <View key={chave} style={styles.cartaoContainer}>
-                                {/* Cartão Físico Estilizado */}
-                                <View style={styles.cartaoFisico}>
-                                    <View style={styles.cartaoTopo}>
-                                        <Text style={styles.nomeCartaoTopo}>{cartao.nome}</Text>
-                                        <ShieldCheck size={22} color="#93c5fd" />
+                            const percentualUso = limiteTotal > 0
+                                ? Math.min(Math.round((faturaAtual / limiteTotal) * 100), 100)
+                                : 0;
+
+                            return (
+                                <View key={cartao.id_cartao} style={styles.cartaoContainer}>
+                                    {/* Cartão Físico Estilizado */}
+                                    <View style={styles.cartaoFisico}>
+                                        <View style={styles.cartaoTopo}>
+                                            <Text style={styles.nomeCartaoTopo}>{cartao.nome}</Text>
+                                            <Text style={styles.bandeiraBadge}>{cartao.bandeira}</Text>
+                                        </View>
+
+                                        <View style={styles.chipFisico} />
+
+                                        <Text style={styles.numeroMascara}>•••• •••• •••• 4242</Text>
+
+                                        <View style={styles.cartaoRodape}>
+                                            <View>
+                                                <Text style={styles.cartaoLabelPequena}>LIMITE TOTAL</Text>
+                                                <Text style={styles.cartaoValorPequeno}>
+                                                    {formatarMoeda(limiteTotal)}
+                                                </Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={styles.cartaoLabelPequena}>FECHAMENTO / VENCIMENTO</Text>
+                                                <Text style={styles.cartaoValorPequeno}>
+                                                    Dia {cartao.dia_fechamento} / {cartao.dia_vencimento}
+                                                </Text>
+                                            </View>
+                                        </View>
                                     </View>
 
-                                    <View style={styles.chipFisico} />
+                                    {/* Painel de Fatura e Limite */}
+                                    <View style={styles.painelDetalhes}>
+                                        <View style={styles.linhaFatura}>
+                                            <View>
+                                                <Text style={styles.labelFatura}>Fatura Atual</Text>
+                                                <Text style={styles.valorFatura}>{formatarMoeda(faturaAtual)}</Text>
+                                            </View>
 
-                                    <Text style={styles.numeroMascara}>•••• •••• •••• 4242</Text>
-
-                                    <View style={styles.cartaoRodape}>
-                                        <View>
-                                            <Text style={styles.cartaoLabelPequena}>LIMITE TOTAL</Text>
-                                            <Text style={styles.cartaoValorPequeno}>
-                                                {formatarMoeda(limiteTotal)}
-                                            </Text>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={styles.labelFatura}>Disponível</Text>
+                                                <Text style={styles.valorDisponivel}>{formatarMoeda(limiteDisp)}</Text>
+                                            </View>
                                         </View>
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={styles.cartaoLabelPequena}>FECHAMENTO / VENCIMENTO</Text>
-                                            <Text style={styles.cartaoValorPequeno}>
-                                                Dia {cartao.dia_fechamento} / {cartao.dia_vencimento}
-                                            </Text>
+
+                                        {/* Barra de Progresso */}
+                                        <View style={styles.barraFundo}>
+                                            <View
+                                                style={[
+                                                    styles.barraProgresso,
+                                                    {
+                                                        width: `${percentualUso}%`,
+                                                        backgroundColor:
+                                                            percentualUso > 80
+                                                                ? '#ef4444'
+                                                                : percentualUso > 50
+                                                                    ? '#f59e0b'
+                                                                    : '#10b981',
+                                                    },
+                                                ]}
+                                            />
+                                        </View>
+
+                                        <View style={styles.rodapeAcoes}>
+                                            <View style={styles.datasInfo}>
+                                                <Calendar size={14} color="#64748b" />
+                                                <Text style={styles.textoDatasInfo}>
+                                                    Fecha dia {cartao.dia_fechamento} • Vence dia {cartao.dia_vencimento}
+                                                </Text>
+                                            </View>
+
+                                            <TouchableOpacity
+                                                style={styles.botaoRemover}
+                                                onPress={() => handleExcluir(cartao)}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                            >
+                                                <Trash2 size={16} color="#ef4444" />
+                                            </TouchableOpacity>
                                         </View>
                                     </View>
                                 </View>
+                            );
+                        })
+                    )}
+                </ScrollView>
+            )}
 
-                                {/* Painel de Fatura e Limite */}
-                                <View style={styles.painelDetalhes}>
-                                    <View style={styles.linhaFatura}>
-                                        <View>
-                                            <Text style={styles.labelFatura}>Fatura Atual</Text>
-                                            <Text style={styles.valorFatura}>{formatarMoeda(faturaAtual)}</Text>
-                                        </View>
+            {/* FAB */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => setModalAberto(true)}
+                activeOpacity={0.85}
+            >
+                <Plus color="#ffffff" size={28} />
+            </TouchableOpacity>
 
-                                        <View style={{ alignItems: 'flex-end' }}>
-                                            <Text style={styles.labelFatura}>Disponível</Text>
-                                            <Text style={styles.valorDisponivel}>{formatarMoeda(limiteDisponivel)}</Text>
-                                        </View>
-                                    </View>
+            {/* Modal */}
+            <Modal visible={modalAberto} transparent animationType="slide" onRequestClose={() => setModalAberto(false)}>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.overlay}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                            style={styles.modalContainer}
+                        >
+                            <ScrollView showsVerticalScrollIndicator={false}>
+                                <View style={styles.modalTopo}>
+                                    <Text style={styles.modalTitulo}>Novo Cartão de Crédito</Text>
+                                    <TouchableOpacity onPress={() => setModalAberto(false)} disabled={salvando}>
+                                        <X size={24} color="#64748b" />
+                                    </TouchableOpacity>
+                                </View>
 
-                                    {/* Barra de Progresso do Limite */}
-                                    <View style={styles.barraFundo}>
-                                        <View
+                                {/* Nome */}
+                                <Text style={styles.labelInput}>Identificação / Nome *</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Ex: Nubank Roxinho, C6 Carbon"
+                                    placeholderTextColor="#94a3b8"
+                                    value={nomeCartao}
+                                    onChangeText={setNomeCartao}
+                                />
+
+                                {/* Bandeira */}
+                                <Text style={styles.labelInput}>Bandeira *</Text>
+                                <View style={styles.bandeirasRow}>
+                                    {BANDEIRAS.map((b) => (
+                                        <TouchableOpacity
+                                            key={b}
                                             style={[
-                                                styles.barraProgresso,
-                                                {
-                                                    width: `${percentualUso}%`,
-                                                    backgroundColor:
-                                                        percentualUso > 80
-                                                            ? '#ef4444'
-                                                            : percentualUso > 50
-                                                                ? '#f59e0b'
-                                                                : '#10b981',
-                                                },
+                                                styles.chipBandeira,
+                                                bandeiraSelecionada === b && styles.chipBandeiraAtivo,
                                             ]}
+                                            onPress={() => setBandeiraSelecionada(b)}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.textoBandeira,
+                                                    bandeiraSelecionada === b && styles.textoBandeiraAtivo,
+                                                ]}
+                                            >
+                                                {b}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Limite Total */}
+                                <Text style={styles.labelInput}>Limite Total (R$) *</Text>
+                                <View style={styles.boxValor}>
+                                    <Text style={styles.moeda}>R$</Text>
+                                    <TextInput
+                                        style={styles.inputValor}
+                                        value={limiteFormatado}
+                                        onChangeText={handleLimiteChange}
+                                        keyboardType="number-pad"
+                                    />
+                                </View>
+
+                                {/* Dias */}
+                                <View style={styles.linhaDatas}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.labelInput}>Dia Fechamento *</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="05"
+                                            placeholderTextColor="#94a3b8"
+                                            keyboardType="numeric"
+                                            maxLength={2}
+                                            value={diaFechamento}
+                                            onChangeText={setDiaFechamento}
                                         />
                                     </View>
 
-                                    <View style={styles.rodapeAcoes}>
-                                        <View style={styles.datasInfo}>
-                                            <Calendar size={14} color="#64748b" />
-                                            <Text style={styles.textoDatasInfo}>
-                                                Fecha dia {cartao.dia_fechamento} • Vence dia {cartao.dia_vencimento}
-                                            </Text>
-                                        </View>
-
-                                        <TouchableOpacity
-                                            style={styles.botaoRemover}
-                                            onPress={() => handleExcluir(cartao)}
-                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                        >
-                                            <Trash2 size={16} color="#ef4444" />
-                                        </TouchableOpacity>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.labelInput}>Dia Vencimento *</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="15"
+                                            placeholderTextColor="#94a3b8"
+                                            keyboardType="numeric"
+                                            maxLength={2}
+                                            value={diaVencimento}
+                                            onChangeText={setDiaVencimento}
+                                        />
                                     </View>
                                 </View>
-                            </View>
-                        );
-                    })
-                )}
-            </ScrollView>
-        )}
 
-        {/* FAB - Adicionar Cartão */}
-        <TouchableOpacity
-            style={styles.fab}
-            onPress={() => setModalAberto(true)}
-            activeOpacity={0.85}
-        >
-            <Plus color="#ffffff" size={28} />
-        </TouchableOpacity>
-
-        {/* Modal de Cadastro de Cartão */}
-        <Modal visible={modalAberto} transparent animationType="slide" onRequestClose={() => setModalAberto(false)}>
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.overlay}>
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                        style={styles.modalContainer}
-                    >
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            <View style={styles.modalTopo}>
-                                <Text style={styles.modalTitulo}>Novo Cartão de Crédito</Text>
-                                <TouchableOpacity onPress={() => setModalAberto(false)} disabled={salvando}>
-                                    <X size={24} color="#64748b" />
+                                <TouchableOpacity
+                                    style={styles.botaoConfirmar}
+                                    onPress={handleSalvarCartao}
+                                    disabled={salvando}
+                                >
+                                    {salvando ? (
+                                        <ActivityIndicator color="#ffffff" />
+                                    ) : (
+                                        <Text style={styles.textoBotaoConfirmar}>Cadastrar Cartão</Text>
+                                    )}
                                 </TouchableOpacity>
-                            </View>
-
-                            {/* Nome do Cartão */}
-                            <Text style={styles.labelInput}>Identificação / Nome *</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Ex: Nubank Roxinho, Inter Black, C6"
-                                placeholderTextColor="#94a3b8"
-                                value={nomeCartao}
-                                onChangeText={setNomeCartao}
-                            />
-
-                            {/* Limite Total */}
-                            <Text style={styles.labelInput}>Limite Total (R$) *</Text>
-                            <View style={styles.boxValor}>
-                                <Text style={styles.moeda}>R$</Text>
-                                <TextInput
-                                    style={styles.inputValor}
-                                    value={limiteFormatado}
-                                    onChangeText={handleLimiteChange}
-                                    keyboardType="number-pad"
-                                />
-                            </View>
-
-                            {/* Datas de Fechamento e Vencimento */}
-                            <View style={styles.linhaDatas}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.labelInput}>Dia de Fechamento *</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Ex: 05"
-                                        placeholderTextColor="#94a3b8"
-                                        keyboardType="numeric"
-                                        maxLength={2}
-                                        value={diaFechamento}
-                                        onChangeText={setDiaFechamento}
-                                    />
-                                </View>
-
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.labelInput}>Dia de Vencimento *</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Ex: 15"
-                                        placeholderTextColor="#94a3b8"
-                                        keyboardType="numeric"
-                                        maxLength={2}
-                                        value={diaVencimento}
-                                        onChangeText={setDiaVencimento}
-                                    />
-                                </View>
-                            </View>
-
-                            {/* Botão de Envio */}
-                            <TouchableOpacity
-                                style={styles.botaoConfirmar}
-                                onPress={handleSalvarCartao}
-                                disabled={salvando}
-                            >
-                                {salvando ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
-                                    <Text style={styles.textoBotaoConfirmar}>Cadastrar Cartão</Text>
-                                )}
-                            </TouchableOpacity>
-                        </ScrollView>
-                    </KeyboardAvoidingView>
-                </View>
-            </TouchableWithoutFeedback>
-        </Modal>
-    </SafeAreaView>
-);
+                            </ScrollView>
+                        </KeyboardAvoidingView>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -501,6 +519,12 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: 'bold',
         letterSpacing: 0.5,
+    },
+    bandeiraBadge: {
+        color: '#93c5fd',
+        fontSize: 13,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
     },
     chipFisico: {
         width: 38,
@@ -653,6 +677,33 @@ const styles = StyleSheet.create({
         color: '#0f172a',
         marginBottom: 14,
     },
+    bandeirasRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 14,
+    },
+    chipBandeira: {
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        backgroundColor: '#f8fafc',
+    },
+    chipBandeiraAtivo: {
+        backgroundColor: '#4f46e5',
+        borderColor: '#4f46e5',
+    },
+    textoBandeira: {
+        fontSize: 13,
+        color: '#475569',
+        fontWeight: '500',
+    },
+    textoBandeiraAtivo: {
+        color: '#ffffff',
+        fontWeight: 'bold',
+    },
     boxValor: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -694,5 +745,3 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 });
-
-
