@@ -103,6 +103,55 @@ export default function CartoesScreen() {
         }, [])
     );
 
+    async function handleSalvarCartao() {
+        if (!nomeCartao.trim()) {
+            Alert.alert('Atenção', 'Digite o nome do cartão (ex: Nubank, Inter).');
+            return;
+        }
+
+        if (limiteNumerico <= 0) {
+            Alert.alert('Atenção', 'Informe um limite total válido.');
+            return;
+        }
+
+        const fechamento = parseInt(diaFechamento, 10);
+        const vencimento = parseInt(diaVencimento, 10);
+
+        if (isNaN(fechamento) || fechamento < 1 || fechamento > 31) {
+            Alert.alert('Atenção', 'Dia de fechamento inválido (deve ser entre 1 e 31).');
+            return;
+        }
+
+        if (isNaN(vencimento) || vencimento < 1 || vencimento > 31) {
+            Alert.alert('Atenção', 'Dia de vencimento inválido (deve ser entre 1 e 31).');
+            return;
+        }
+
+        try {
+            setSalvando(true);
+            await api.post('/cartoes', {
+                nome: nomeCartao.trim(),
+                limite: limiteNumerico,
+                dia_fechamento: fechamento,
+                dia_vencimento: vencimento,
+            });
+
+            Alert.alert('Sucesso', 'Cartão cadastrado com sucesso!');
+            setNomeCartao('');
+            setLimiteFormatado('0,00');
+            setLimiteNumerico(0);
+            setDiaFechamento('05');
+            setDiaVencimento('15');
+            setModalAberto(false);
+            carregarCartoes();
+        } catch (error: any) {
+            const msg = error.response?.data?.error || error.response?.data?.message || 'Erro ao cadastrar cartão.';
+            Alert.alert('Erro', msg);
+        } finally {
+            setSalvando(false);
+        }
+    }
+
 return (
     <SafeAreaView style={styles.container}>
         {/* Cabeçalho */}
