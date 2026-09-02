@@ -152,6 +152,32 @@ export default function CartoesScreen() {
         }
     }
 
+    function handleExcluir(item: CartaoItem) {
+        const idCartao = item.id ?? item.id_cartao;
+
+        Alert.alert(
+            'Remover Cartão',
+            `Tem certeza que deseja apagar o cartão "${item.nome}"?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await api.delete(`/cartoes/${idCartao}`);
+                            setCartoes((prev) => prev.filter((c) => (c.id ?? c.id_cartao) !== idCartao));
+                            Alert.alert('Sucesso', 'Cartão removido.');
+                        } catch (error: any) {
+                            const msg = error.response?.data?.error || 'Erro ao excluir o cartão.';
+                            Alert.alert('Erro', msg);
+                        }
+                    },
+                },
+            ]
+        );
+    }
+
 return (
     <SafeAreaView style={styles.container}>
         {/* Cabeçalho */}
