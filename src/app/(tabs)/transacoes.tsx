@@ -18,105 +18,81 @@ import {
     TrendingUp,
     TrendingDown,
     Trash2,
+    Edit2,
     Plus,
     ArrowUpDown,
 } from 'lucide-react-native';
-import { ModalTransacao } from '@/components/ModalTransacao';
-
-interface Transacao {
-    id: number | string;
-    id_transacao?: number | string;
-    descricao: string;
-    valor: number | string;
-    tipo?: string;
-    tipo_transacao?: string;
-    data?: string;
-    data_transacao?: string;
-    created_at?: string;
-    criado_em?: string;
-    categoria?: string | { nome?: string; tipo?: string };
-    nome_categoria?: string;
-}
+import { ModalTransacao, TransacaoItem } from '@/components/ModalTransacao';
 
 export default function TransacoesScreen() {
-    const [transacoes, setTransacoes] = useState<Transacao[]>([]);
+    const [transacoes, setTransacoes] = useState<TransacaoItem[]>([]);
     const [carregando, setCarregando] = useState(true);
     const [atualizando, setAtualizando] = useState(false);
     const [busca, setBusca] = useState('');
     const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas');
+
+    // Controle do modal para criação ou edição
     const [modalAberto, setModalAberto] = useState(false);
+    const [transacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
 
     function formatarMoeda(valor: number | string) {
-        const numero = Number(valor) || 0;
+        const numero = Math.abs(Number(valor)) || 0;
         return numero.toLocaleString('pt-BR', {
             style: 'currency',
             currency: 'BRL',
         });
     }
 
-    function formatarDataHora(item: Transacao): string {
-        const rawData = item.created_at || item.criado_em || item.data_transacao || item.data;
-        if (!rawData) return '';
+    function extrairTipoNormalizado(item: TransacaoItem): 'receita' | 'despesa' {
+        const raw = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+        return raw.includes('rec') ? 'receita' : 'despesa';
+    }
+
+    function formatarDataHora(item: any): string {
+        const raw = item.created_at || item.criado_em || item.data_transacao || item.data;
+        if (!raw) return '';
 
         try {
-            const dataObj = new Date(rawData);
+            const dataObj = new Date(raw);
             if (isNaN(dataObj.getTime())) return '';
 
-            const diaMes = dataObj.toLocaleDateString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-            });
-
-            if (rawData.includes('T') || rawData.includes(':')) {
-                const horaMin = dataObj.toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                });
+            const diaMes = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            if (String(raw).includes('T') || String(raw).includes(':')) {
+                const horaMin = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 return `${diaMes} às ${horaMin}`;
             }
-
             return diaMes;
         } catch {
             return '';
         }
     }
 
-    function extrairNomeCategoria(item: Transacao): string {
-        if (typeof item.categoria === 'string' && item.categoria.trim()) {
-            return item.categoria;
-        }
-        if (typeof item.categoria === 'object' && item.categoria?.nome) {
-            return item.categoria.nome;
-        }
-        if (item.nome_categoria) {
-            return item.nome_categoria;
-        }
-        const t = String(item.tipo || item.tipo_transacao || '').toLowerCase();
-        return t === 'receita' ? 'Receita' : 'Despesa';
+    function extrairNomeCategoria(item: any): string {
+        if (typeof item.categoria === 'string' && item.categoria.trim()) return item.categoria;
+        if (typeof item.categoria === 'object' && item.categoria?.nome) return item.categoria.nome;
+        if (item.nome_categoria) return item.nome_categoria;
+        return extrairTipoNormalizado(item) === 'receita' ? 'Receita' : 'Despesa';
     }
 
     async function carregarTransacoes() {
         try {
             const res = await api.get('/transacoes');
-            const lista: Transacao[] = res.data?.transacoes || res.data || [];
+            const lista: TransacaoItem[] = res.data?.transacoes || res.data || [];
 
             if (Array.isArray(lista)) {
-                // Ordena do mais recente para o mais antigo
                 const ordenadas = [...lista].sort((a: any, b: any) => {
                     const dataA = new Date(a.created_at || a.criado_em || a.data_transacao || a.data || 0).getTime();
                     const dataB = new Date(b.created_at || b.criado_em || b.data_transacao || b.data || 0).getTime();
-
                     if (dataB !== dataA) return dataB - dataA;
 
                     const idA = Number(a.id ?? a.id_transacao ?? 0);
                     const idB = Number(b.id ?? b.id_transacao ?? 0);
                     return idB - idA;
                 });
-
                 setTransacoes(ordenadas);
             }
         } catch (error: any) {
-            console.error('Erro ao buscar extrato de transações:', error.response?.data || error.message);
+            console.error('Erro ao listar transações:', error.response?.data || error.message);
         } finally {
             setCarregando(false);
             setAtualizando(false);
@@ -129,7 +105,17 @@ export default function TransacoesScreen() {
         }, [])
     );
 
-    function handleExcluir(item: Transacao) {
+    function abrirEdicao(item: TransacaoItem) {
+        setTransacaoSelecionada(item);
+        setModalAberto(true);
+    }
+
+    function abrirCriacao() {
+        setTransacaoSelecionada(null);
+        setModalAberto(true);
+    }
+
+    function handleExcluir(item: TransacaoItem) {
         const idTransacao = item.id ?? item.id_transacao;
 
         Alert.alert(
@@ -146,12 +132,9 @@ export default function TransacoesScreen() {
                             setTransacoes((prev) =>
                                 prev.filter((t) => (t.id ?? t.id_transacao) !== idTransacao)
                             );
-                            Alert.alert('Sucesso', 'Transação excluída com sucesso.');
+                            Alert.alert('Sucesso', 'Transação excluída!');
                         } catch (error: any) {
-                            const msg =
-                                error.response?.data?.error ||
-                                error.response?.data?.message ||
-                                'Não foi possível excluir a transação.';
+                            const msg = error.response?.data?.error || 'Não foi possível excluir a transação.';
                             Alert.alert('Erro', msg);
                         }
                     },
@@ -160,9 +143,9 @@ export default function TransacoesScreen() {
         );
     }
 
-    // Filtragem local com base no input de busca e no filtro ativo
+    // Filtro por abas e busca textual
     const transacoesFiltradas = transacoes.filter((item) => {
-        const tipoItem = String(item.tipo || item.tipo_transacao || '').toLowerCase();
+        const tipoItem = extrairTipoNormalizado(item);
         const matchTipo = filtroTipo === 'todas' || tipoItem === filtroTipo;
 
         const termo = busca.trim().toLowerCase();
@@ -177,13 +160,12 @@ export default function TransacoesScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Cabeçalho */}
             <View style={styles.header}>
                 <Text style={styles.titulo}>Extrato de Transações</Text>
                 <Text style={styles.subtitulo}>Histórico completo de entradas e saídas</Text>
             </View>
 
-            {/* Barra de Pesquisa */}
+            {/* Busca */}
             <View style={styles.boxBusca}>
                 <Search size={18} color="#94a3b8" />
                 <TextInput
@@ -196,7 +178,7 @@ export default function TransacoesScreen() {
                 />
             </View>
 
-            {/* Filtros em Abas */}
+            {/* Abas com contagem dinâmica */}
             <View style={styles.abasContainer}>
                 <TouchableOpacity
                     style={[styles.aba, filtroTipo === 'todas' && styles.abaAtiva]}
@@ -229,7 +211,7 @@ export default function TransacoesScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Lista de Transações */}
+            {/* Lista */}
             {carregando ? (
                 <View style={styles.centroLoading}>
                     <ActivityIndicator size="large" color="#4f46e5" />
@@ -237,7 +219,7 @@ export default function TransacoesScreen() {
             ) : (
                 <FlatList
                     data={transacoesFiltradas}
-                    keyExtractor={(item, index) => String(item.id ?? item.id_transacao ?? index)}
+                    keyExtractor={(item, idx) => String(item.id ?? item.id_transacao ?? idx)}
                     contentContainerStyle={styles.listaConteudo}
                     refreshControl={
                         <RefreshControl
@@ -255,19 +237,14 @@ export default function TransacoesScreen() {
                         </View>
                     }
                     renderItem={({ item }) => {
-                        const ehReceita = String(item.tipo || item.tipo_transacao || '').toLowerCase() === 'receita';
-                        const nomeCategoria = extrairNomeCategoria(item);
-                        const dataFormatada = formatarDataHora(item);
+                        const ehReceita = extrairTipoNormalizado(item) === 'receita';
+                        const nomeCat = extrairNomeCategoria(item);
+                        const dataFmt = formatarDataHora(item);
 
                         return (
                             <View style={styles.cardItem}>
                                 <View style={styles.itemEsquerda}>
-                                    <View
-                                        style={[
-                                            styles.iconeTipo,
-                                            ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone,
-                                        ]}
-                                    >
+                                    <View style={[styles.iconeTipo, ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone]}>
                                         {ehReceita ? (
                                             <TrendingUp size={18} color="#10b981" />
                                         ) : (
@@ -280,32 +257,36 @@ export default function TransacoesScreen() {
                                             {item.descricao}
                                         </Text>
                                         <View style={styles.metaTransacao}>
-                                            <Text style={styles.categoriaTransacao}>{nomeCategoria}</Text>
-                                            {dataFormatada ? (
-                                                <Text style={styles.dataTransacao}> • {dataFormatada}</Text>
-                                            ) : null}
+                                            <Text style={styles.categoriaTransacao}>{nomeCat}</Text>
+                                            {dataFmt ? <Text style={styles.dataTransacao}> • {dataFmt}</Text> : null}
                                         </View>
                                     </View>
                                 </View>
 
                                 <View style={styles.itemDireita}>
-                                    <Text
-                                        style={[
-                                            styles.valorTransacao,
-                                            ehReceita ? styles.textoVerde : styles.textoVermelho,
-                                        ]}
-                                    >
+                                    <Text style={[styles.valorTransacao, ehReceita ? styles.textoVerde : styles.textoVermelho]}>
                                         {ehReceita ? '+ ' : '- '}
                                         {formatarMoeda(item.valor)}
                                     </Text>
 
-                                    <TouchableOpacity
-                                        style={styles.botaoLixeira}
-                                        onPress={() => handleExcluir(item)}
-                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                    >
-                                        <Trash2 size={16} color="#94a3b8" />
-                                    </TouchableOpacity>
+                                    {/* Ações: Editar e Excluir */}
+                                    <View style={styles.acoesContainer}>
+                                        <TouchableOpacity
+                                            style={styles.botaoAcao}
+                                            onPress={() => abrirEdicao(item)}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            <Edit2 size={15} color="#64748b" />
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={styles.botaoAcao}
+                                            onPress={() => handleExcluir(item)}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            <Trash2 size={15} color="#ef4444" />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
                         );
@@ -313,20 +294,20 @@ export default function TransacoesScreen() {
                 />
             )}
 
-            {/* Botão Flutuante (FAB) */}
-            <TouchableOpacity
-                style={styles.fab}
-                onPress={() => setModalAberto(true)}
-                activeOpacity={0.85}
-            >
+            {/* FAB */}
+            <TouchableOpacity style={styles.fab} onPress={abrirCriacao} activeOpacity={0.85}>
                 <Plus color="#ffffff" size={28} />
             </TouchableOpacity>
 
-            {/* Modal de Criação */}
+            {/* Modal Reutilizado para Criação e Edição */}
             <ModalTransacao
                 visivel={modalAberto}
-                aoFechar={() => setModalAberto(false)}
+                aoFechar={() => {
+                    setModalAberto(false);
+                    setTransacaoSelecionada(null);
+                }}
                 aoSalvarSucesso={carregarTransacoes}
+                transacaoParaEditar={transacaoSelecionada}
             />
         </SafeAreaView>
     );
@@ -483,7 +464,12 @@ const styles = StyleSheet.create({
     textoVermelho: {
         color: '#ef4444',
     },
-    botaoLixeira: {
+    acoesContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    botaoAcao: {
         padding: 2,
     },
     cardVazio: {
