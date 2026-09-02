@@ -48,7 +48,6 @@ export default function PerfilScreen() {
                         <User size={40} color="#4f46e5" />
                     </View>
                     <Text style={styles.nome}>{usuario?.nome || 'Usuário'}</Text>
-                    <Text style={styles.email}>{usuario?.email || 'email@exemplo.com'}</Text>
                 </View>
 
                 {/* Detalhes da Conta */}
@@ -58,7 +57,8 @@ export default function PerfilScreen() {
                             <Mail size={20} color="#64748b" />
                             <Text style={styles.labelInfo}>E-mail</Text>
                         </View>
-                        <Text style={styles.valorInfo}>{usuario?.email || '-'}</Text>
+                        <Text style={styles.valorInfo}>{usuario?.email || ''}</Text>
+                        <Text style={styles.email}>{usuario?.email || 'email@exemplo.com'}</Text>
                     </View>
 
                     <View style={styles.itemInfo}>
