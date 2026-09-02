@@ -22,7 +22,22 @@ import {
     Plus,
     ArrowUpDown,
 } from 'lucide-react-native';
-import { ModalTransacao, TransacaoItem } from '@/components/ModalTransacao';
+import { ModalTransacao } from '@/components/ModalTransacao';
+
+type TransacaoItem = {
+    id?: number | string;
+    id_transacao?: number | string;
+    descricao: string;
+    valor: number | string;
+    tipo?: string;
+    tipo_transacao?: string;
+    categoria?: string | { nome?: string; tipo?: string };
+    nome_categoria?: string;
+    created_at?: string;
+    criado_em?: string;
+    data_transacao?: string;
+    data?: string;
+};
 
 export default function TransacoesScreen() {
     const [transacoes, setTransacoes] = useState<TransacaoItem[]>([]);
@@ -44,7 +59,9 @@ export default function TransacoesScreen() {
     }
 
     function extrairTipoNormalizado(item: TransacaoItem): 'receita' | 'despesa' {
-        const raw = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+        const categoria = item.categoria;
+        const tipoCategoria = typeof categoria === 'object' && categoria !== null ? categoria.tipo : '';
+        const raw = String(item.tipo || item.tipo_transacao || tipoCategoria || '').toLowerCase();
         return raw.includes('rec') ? 'receita' : 'despesa';
     }
 
@@ -301,13 +318,15 @@ export default function TransacoesScreen() {
 
             {/* Modal Reutilizado para Criação e Edição */}
             <ModalTransacao
-                visivel={modalAberto}
-                aoFechar={() => {
-                    setModalAberto(false);
-                    setTransacaoSelecionada(null);
-                }}
-                aoSalvarSucesso={carregarTransacoes}
-                transacaoParaEditar={transacaoSelecionada}
+                {...({
+                    visivel: modalAberto,
+                    aoFechar: () => {
+                        setModalAberto(false);
+                        setTransacaoSelecionada(null);
+                    },
+                    aoSalvarSucesso: carregarTransacoes,
+                    transacaoParaEditar: transacaoSelecionada,
+                } as any)}
             />
         </SafeAreaView>
     );
