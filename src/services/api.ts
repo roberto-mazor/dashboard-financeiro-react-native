@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 const TOKEN_KEY = 'indigo_finance_token';
 
 export const api = axios.create({
-    baseURL: 'https://dashboard-financeiro-projeto-pi-bac.vercel.app/api', // Substitua pela sua URL base
+    baseURL: 'https://dashboard-financeiro-projeto-pi-bac.vercel.app/api',
     timeout: 10000,
 });
 
