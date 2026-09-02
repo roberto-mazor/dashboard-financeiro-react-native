@@ -65,6 +65,44 @@ export default function CartoesScreen() {
         });
     }
 
+    // Máscara Nubank no limite
+    function handleLimiteChange(texto: string) {
+        const apenasDigitos = texto.replace(/\D/g, '');
+        if (!apenasDigitos || apenasDigitos === '0') {
+            setLimiteFormatado('0,00');
+            setLimiteNumerico(0);
+            return;
+        }
+
+        const centavos = parseInt(apenasDigitos.slice(0, 10), 10);
+        const real = centavos / 100;
+        setLimiteNumerico(real);
+        setLimiteFormatado(
+            real.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        );
+    }
+
+    async function carregarCartoes() {
+        try {
+            const res = await api.get('/cartoes');
+            const lista: CartaoItem[] = res.data?.cartoes || res.data || [];
+            if (Array.isArray(lista)) {
+                setCartoes(lista);
+            }
+        } catch (error: any) {
+            console.error('Erro ao buscar cartões:', error.response?.data || error.message);
+        } finally {
+            setCarregando(false);
+            setAtualizando(false);
+        }
+    }
+
+    useFocusEffect(
+        useCallback(() => {
+            carregarCartoes();
+        }, [])
+    );
+
 return (
     <SafeAreaView style={styles.container}>
         {/* Cabeçalho */}
