@@ -1,10 +1,8 @@
-import React from "react";
-import { Slot } from "expo-router";
-import { Tabs } from 'expo-router'
-import { LayoutDashboard, ArrowLeftRight, CreditCard, User } from "lucide-react-native";
-import { AuthProvider } from "@/contexts/AuthContext";
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { LayoutDashboard, ArrowLeftRight, User, CreditCard } from 'lucide-react-native';
 
-export default function RootLayout() {
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -14,21 +12,24 @@ export default function RootLayout() {
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopColor: '#e2e8f0',
-          height: 60,
-          paddingBottom: 8,
+          borderTopWidth: 1,
+          height: 80,
+          paddingBottom: 14,
           paddingTop: 8,
-      },
-      tabBarLabelStyle:{
-        fontSize:12,
-        fontWeight: '600',
-      },
-    }}
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
+      }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Início',
-          tabBarIcon: ({ color, size}) => <LayoutDashboard color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <LayoutDashboard size={size ?? 22} color={color} />
+          ),
         }}
       />
 
@@ -36,14 +37,29 @@ export default function RootLayout() {
         name="transacoes"
         options={{
           title: 'Transações',
-          tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size}/>,
+          tabBarIcon: ({ color, size }) => (
+            <ArrowLeftRight size={size ?? 22} color={color} />
+          ),
         }}
       />
-      <Tabs.Screen 
+
+      <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => <User color={color} size={size}/>,
+          tabBarIcon: ({ color, size }) => (
+            <User size={size ?? 22} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="cartoes"
+        options={{
+          title: 'Cartões',
+          tabBarIcon: ({ color, size }) => (
+            <CreditCard size={size ?? 22} color={color} />
+          ),
         }}
       />
     </Tabs>
