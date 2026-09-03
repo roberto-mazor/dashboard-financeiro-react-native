@@ -19,6 +19,7 @@ import {
     TrendingUp,
     TrendingDown,
     Plus,
+    CreditCard,
 } from 'lucide-react-native';
 import { ModalTransacao } from '@/components/ModalTransacao';
 
@@ -35,6 +36,8 @@ interface Transacao {
     criado_em?: string;
     categoria?: string | { nome?: string; tipo?: string; status?: string };
     nome_categoria?: string;
+    id_cartao?: number | null;
+    cartao?: { id_cartao?: number; nome?: string; bandeira?: string } | null;
 }
 
 interface ResumoFinanceiro {
@@ -77,7 +80,6 @@ export default function Dashboard() {
                 month: '2-digit',
             });
 
-            // Se tiver informação de hora/minuto
             if (rawData.includes('T') || rawData.includes(':')) {
                 const horaMin = dataObj.toLocaleTimeString('pt-BR', {
                     hour: '2-digit',
@@ -106,6 +108,16 @@ export default function Dashboard() {
         return t === 'receita' ? 'Entrada' : 'Saída';
     }
 
+    function extrairNomeCartao(item: Transacao): string | null {
+        if (item.cartao && typeof item.cartao === 'object' && item.cartao.nome) {
+            return item.cartao.nome;
+        }
+        if (item.id_cartao) {
+            return 'Cartão';
+        }
+        return null;
+    }
+
     async function carregarDados() {
         try {
             let saldoCalculado = 0;
@@ -117,7 +129,6 @@ export default function Dashboard() {
             const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
 
             if (Array.isArray(listaBruta)) {
-                // Ordenação decrescente: por Data/Hora e por ID
                 const listaOrdenada = [...listaBruta].sort((a: any, b: any) => {
                     const dataA = new Date(a.created_at || a.criado_em || a.data_transacao || a.data || 0).getTime();
                     const dataB = new Date(b.created_at || b.criado_em || b.data_transacao || b.data || 0).getTime();
@@ -262,6 +273,7 @@ export default function Dashboard() {
                                     const chaveItem = item.id ?? item.id_transacao ?? index;
                                     const nomeCategoria = extrairNomeCategoria(item);
                                     const dataFormatada = formatarDataHora(item);
+                                    const nomeCartao = extrairNomeCartao(item);
 
                                     return (
                                         <View key={chaveItem} style={styles.itemTransacao}>
@@ -274,17 +286,31 @@ export default function Dashboard() {
                                                 >
                                                     {ehReceita ? (
                                                         <TrendingUp size={18} color="#10b981" />
+                                                    ) : nomeCartao ? (
+                                                        <CreditCard size={18} color="#ef4444" />
                                                     ) : (
                                                         <TrendingDown size={18} color="#ef4444" />
                                                     )}
                                                 </View>
-                                                <View>
-                                                    <Text style={styles.descricaoTransacao}>{item.descricao}</Text>
+
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={styles.descricaoTransacao} numberOfLines={1}>
+                                                        {item.descricao}
+                                                    </Text>
+
                                                     <View style={styles.metaTransacao}>
                                                         <Text style={styles.categoriaTransacao}>{nomeCategoria}</Text>
                                                         {dataFormatada ? (
                                                             <Text style={styles.dataTransacao}> • {dataFormatada}</Text>
                                                         ) : null}
+
+                                                        {/* Badge do Cartão de Crédito */}
+                                                        {nomeCartao && (
+                                                            <View style={styles.badgeCartao}>
+                                                                <CreditCard size={10} color="#4f46e5" />
+                                                                <Text style={styles.textoBadgeCartao}>{nomeCartao}</Text>
+                                                            </View>
+                                                        )}
                                                     </View>
                                                 </View>
                                             </View>
@@ -452,9 +478,11 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     transacaoEsquerda: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        marginRight: 10,
     },
     iconeTipo: {
         width: 36,
@@ -477,6 +505,8 @@ const styles = StyleSheet.create({
     metaTransacao: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 4,
         marginTop: 2,
     },
     categoriaTransacao: {
@@ -486,6 +516,21 @@ const styles = StyleSheet.create({
     dataTransacao: {
         fontSize: 11,
         color: '#94a3b8',
+    },
+    badgeCartao: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#ede9fe',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginLeft: 4,
+    },
+    textoBadgeCartao: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#4f46e5',
     },
     valorTransacao: {
         fontSize: 15,

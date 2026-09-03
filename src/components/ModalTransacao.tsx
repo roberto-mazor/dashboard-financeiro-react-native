@@ -15,7 +15,30 @@ import {
     ScrollView,
 } from 'react-native';
 import { api } from '@/services/api';
-import { X, TrendingUp, TrendingDown, Tag, Plus, Check } from 'lucide-react-native';
+import {
+    X,
+    TrendingUp,
+    TrendingDown,
+    Tag,
+    Plus,
+    Check,
+    CreditCard as CreditCardIcon,
+    Wallet,
+} from 'lucide-react-native';
+
+export interface TransacaoItem {
+    id?: number | string;
+    id_transacao?: number | string;
+    descricao: string;
+    valor: number | string;
+    tipo?: string;
+    tipo_transacao?: string;
+    id_categoria?: number;
+    categoria_id?: number;
+    categoria?: any;
+    id_cartao?: number | null;
+    cartao?: any;
+}
 
 interface Categoria {
     id: number;
@@ -24,13 +47,26 @@ interface Categoria {
     id_categoria?: number;
 }
 
+interface CartaoOption {
+    id_cartao: number;
+    nome: string;
+    bandeira?: string;
+    limite_disponivel?: number | string;
+}
+
 interface ModalTransacaoProps {
     visivel: boolean;
     aoFechar: () => void;
     aoSalvarSucesso: () => void;
+    transacaoParaEditar?: TransacaoItem | null;
 }
 
-export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTransacaoProps) {
+export function ModalTransacao({
+    visivel,
+    aoFechar,
+    aoSalvarSucesso,
+    transacaoParaEditar,
+}: ModalTransacaoProps) {
     const [tipo, setTipo] = useState<'receita' | 'despesa'>('receita');
     const [descricao, setDescricao] = useState('');
     const [valorFormatado, setValorFormatado] = useState('0,00');
@@ -40,7 +76,11 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
     const [carregandoCategorias, setCarregandoCategorias] = useState(false);
     const [salvando, setSalvando] = useState(false);
 
-    // Estados de criação de categoria
+    // Estados de Cartão de Crédito
+    const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
+    const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
+
+    // Estados de Nova Categoria
     const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
     const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
@@ -48,40 +88,52 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
     useEffect(() => {
         if (visivel) {
             buscarCategorias();
-        }
-    }, [visivel]);
+            buscarCartoes();
 
-    useEffect(() => {
-        setCategoriaSelecionada(null);
-        setCriandoCategoria(false);
-        setNomeNovaCategoria('');
-        if (visivel) {
-            buscarCategorias();
+            if (transacaoParaEditar) {
+                preencherParaEdicao(transacaoParaEditar);
+            } else {
+                resetar();
+            }
         }
-    }, [tipo]);
+    }, [visivel, transacaoParaEditar]);
 
-    // Máscara estilo Nubank (centavos da direita para a esquerda)
+    function preencherParaEdicao(item: TransacaoItem) {
+        const tipoNorm = String(item.tipo || item.tipo_transacao || '').toLowerCase().includes('rec')
+            ? 'receita'
+            : 'despesa';
+        setTipo(tipoNorm);
+        setDescricao(item.descricao || '');
+
+        const val = Math.abs(Number(item.valor)) || 0;
+        setValorNumerico(val);
+        setValorFormatado(
+            val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        );
+
+        const catId = Number(item.id_categoria ?? item.categoria_id ?? item.categoria?.id);
+        if (catId) {
+            const encontrada = categorias.find((c) => c.id === catId);
+            if (encontrada) setCategoriaSelecionada(encontrada);
+        }
+
+        const cardId = item.id_cartao ? Number(item.id_cartao) : null;
+        setCartaoSelecionado(cardId);
+    }
+
     function handleValorChange(texto: string) {
-        // Remove tudo que não for número
         const apenasDigitos = texto.replace(/\D/g, '');
-
         if (!apenasDigitos || apenasDigitos === '0') {
             setValorFormatado('0,00');
             setValorNumerico(0);
             return;
         }
 
-        // Limita tamanho para evitar overflow (máximo R$ 9.999.999,99)
-        const digitosLimitados = apenasDigitos.slice(0, 10);
-        const centavos = parseInt(digitosLimitados, 10);
-        const numeroReal = centavos / 100;
-
-        setValorNumerico(numeroReal);
+        const centavos = parseInt(apenasDigitos.slice(0, 10), 10);
+        const real = centavos / 100;
+        setValorNumerico(real);
         setValorFormatado(
-            numeroReal.toLocaleString('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            })
+            real.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         );
     }
 
@@ -92,17 +144,29 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             const listaBruta = res.data?.categorias || res.data || [];
 
             if (Array.isArray(listaBruta)) {
-                const listaNormalizada: Categoria[] = listaBruta.map((cat: any) => ({
+                const norm: Categoria[] = listaBruta.map((cat: any) => ({
                     id: Number(cat.id ?? cat.id_categoria),
                     nome: cat.nome || cat.descricao || 'Sem nome',
-                    tipo: (cat.tipo || '').toLowerCase(),
+                    tipo: String(cat.tipo || '').toLowerCase(),
                 }));
-                setCategorias(listaNormalizada);
+                setCategorias(norm);
             }
         } catch (error: any) {
             console.error('Erro ao buscar categorias:', error.response?.data || error.message);
         } finally {
             setCarregandoCategorias(false);
+        }
+    }
+
+    async function buscarCartoes() {
+        try {
+            const res = await api.get('/cartoes');
+            const lista = res.data?.cartoes || res.data || [];
+            if (Array.isArray(lista)) {
+                setCartoes(lista);
+            }
+        } catch (error: any) {
+            console.error('Erro ao buscar cartões:', error.response?.data || error.message);
         }
     }
 
@@ -113,16 +177,6 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             return;
         }
 
-        const jaExiste = categorias.find(
-            (c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase()
-        );
-        if (jaExiste) {
-            setCategoriaSelecionada(jaExiste);
-            setNomeNovaCategoria('');
-            setCriandoCategoria(false);
-            return;
-        }
-
         try {
             setSalvandoNovaCat(true);
             const res = await api.post('/categorias', {
@@ -130,12 +184,10 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                 tipo: tipo.toLowerCase(),
             });
 
-            const retorno = res.data?.categoria || res.data;
-            const novaId = Number(retorno?.id ?? retorno?.id_categoria ?? Date.now());
-
+            const ret = res.data?.categoria || res.data;
             const novaCat: Categoria = {
-                id: novaId,
-                nome: retorno?.nome || nomeLimpo,
+                id: Number(ret?.id ?? ret?.id_categoria ?? Date.now()),
+                nome: ret?.nome || nomeLimpo,
                 tipo: tipo.toLowerCase(),
             };
 
@@ -143,13 +195,10 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             setCategoriaSelecionada(novaCat);
             setNomeNovaCategoria('');
             setCriandoCategoria(false);
-            Alert.alert('Sucesso', `Categoria "${novaCat.nome}" cadastrada!`);
         } catch {
             await buscarCategorias();
             const encontrada = categorias.find((c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase());
-            if (encontrada) {
-                setCategoriaSelecionada(encontrada);
-            }
+            if (encontrada) setCategoriaSelecionada(encontrada);
             setNomeNovaCategoria('');
             setCriandoCategoria(false);
         } finally {
@@ -162,6 +211,7 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
         setValorFormatado('0,00');
         setValorNumerico(0);
         setCategoriaSelecionada(null);
+        setCartaoSelecionado(null);
         setCriandoCategoria(false);
         setNomeNovaCategoria('');
         setTipo('receita');
@@ -178,44 +228,46 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
             return;
         }
 
-        const idFinalCategoria = categoriaSelecionada
+        const idCat = categoriaSelecionada
             ? Number(categoriaSelecionada.id ?? (categoriaSelecionada as any).id_categoria)
             : null;
 
-        if (!categoriaSelecionada || !idFinalCategoria || isNaN(idFinalCategoria)) {
+        if (!idCat || isNaN(idCat)) {
             Alert.alert('Atenção', 'Selecione uma categoria.');
             return;
         }
 
         try {
             setSalvando(true);
-
-            const hoje = new Date();
-            const dataFormatada = hoje.toISOString().split('T')[0];
+            const hoje = new Date().toISOString().split('T')[0];
 
             const payload = {
                 descricao: descricao.trim(),
                 valor: valorNumerico,
                 tipo: tipo.toLowerCase(),
-                id_categoria: idFinalCategoria,
-                categoria_id: idFinalCategoria,
-                data_transacao: dataFormatada,
-                data: dataFormatada,
-                id_cartao: null,
+                id_categoria: idCat,
+                categoria_id: idCat,
+                data: hoje,
+                data_transacao: hoje,
+                id_cartao: tipo === 'despesa' ? cartaoSelecionado : null,
             };
 
-            await api.post('/transacoes', payload);
+            const idTransacao = transacaoParaEditar?.id ?? transacaoParaEditar?.id_transacao;
 
-            Alert.alert('Sucesso', 'Transação cadastrada com sucesso!');
+            if (idTransacao) {
+                await api.put(`/transacoes/${idTransacao}`, payload);
+                Alert.alert('Sucesso', 'Transação atualizada com sucesso!');
+            } else {
+                await api.post('/transacoes', payload);
+                Alert.alert('Sucesso', 'Transação cadastrada com sucesso!');
+            }
+
             resetar();
             aoSalvarSucesso();
             aoFechar();
         } catch (error: any) {
             console.error('Erro ao salvar transação:', error.response?.data || error.message);
-            const msg =
-                error.response?.data?.error ||
-                error.response?.data?.message ||
-                'Erro ao salvar transação no servidor.';
+            const msg = error.response?.data?.error || error.response?.data?.message || 'Erro ao processar requisição.';
             Alert.alert('Erro', msg);
         } finally {
             setSalvando(false);
@@ -224,7 +276,7 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
 
     const categoriasFiltradas = categorias.filter((c) => {
         if (!c.tipo) return true;
-        return c.tipo.toLowerCase() === tipo.toLowerCase();
+        return c.tipo.includes(tipo.substring(0, 3));
     });
 
     return (
@@ -235,56 +287,45 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                         style={styles.containerModal}
                     >
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
 
                             {/* Topo */}
                             <View style={styles.topoModal}>
-                                <Text style={styles.tituloModal}>Nova Transação</Text>
+                                <Text style={styles.tituloModal}>
+                                    {transacaoParaEditar ? 'Editar Transação' : 'Nova Transação'}
+                                </Text>
                                 <TouchableOpacity onPress={aoFechar} disabled={salvando}>
                                     <X size={24} color="#64748b" />
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Botões Tipo */}
+                            {/* Seletor Tipo */}
                             <View style={styles.containerTipo}>
                                 <TouchableOpacity
-                                    style={[
-                                        styles.botaoTipo,
-                                        tipo === 'receita' && styles.botaoTipoReceitaAtivo,
-                                    ]}
-                                    onPress={() => setTipo('receita')}
+                                    style={[styles.botaoTipo, tipo === 'receita' && styles.botaoTipoReceitaAtivo]}
+                                    onPress={() => {
+                                        setTipo('receita');
+                                        setCartaoSelecionado(null);
+                                    }}
                                 >
                                     <TrendingUp size={18} color={tipo === 'receita' ? '#ffffff' : '#10b981'} />
-                                    <Text
-                                        style={[
-                                            styles.textoTipo,
-                                            tipo === 'receita' && styles.textoTipoAtivo,
-                                        ]}
-                                    >
+                                    <Text style={[styles.textoTipo, tipo === 'receita' && styles.textoTipoAtivo]}>
                                         Receita
                                     </Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    style={[
-                                        styles.botaoTipo,
-                                        tipo === 'despesa' && styles.botaoTipoDespesaAtivo,
-                                    ]}
+                                    style={[styles.botaoTipo, tipo === 'despesa' && styles.botaoTipoDespesaAtivo]}
                                     onPress={() => setTipo('despesa')}
                                 >
                                     <TrendingDown size={18} color={tipo === 'despesa' ? '#ffffff' : '#ef4444'} />
-                                    <Text
-                                        style={[
-                                            styles.textoTipo,
-                                            tipo === 'despesa' && styles.textoTipoAtivo,
-                                        ]}
-                                    >
+                                    <Text style={[styles.textoTipo, tipo === 'despesa' && styles.textoTipoAtivo]}>
                                         Despesa
                                     </Text>
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Input de Valor Estilo Nubank */}
+                            {/* Valor estilo Nubank */}
                             <Text style={styles.label}>Valor (R$) *</Text>
                             <View style={styles.inputValorContainer}>
                                 <Text style={styles.simboloMoeda}>R$</Text>
@@ -301,13 +342,68 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                             <Text style={styles.label}>Descrição *</Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder="Ex: Salário, Supermercado, Freelance"
+                                placeholder="Ex: Aluguel, Supermercado, Salário"
                                 placeholderTextColor="#94a3b8"
                                 value={descricao}
                                 onChangeText={setDescricao}
                             />
 
-                            {/* Cabeçalho de Categoria */}
+                            {/* Forma de Pagamento (Apenas quando for Despesa) */}
+                            {tipo === 'despesa' && cartoes.length > 0 && (
+                                <View style={styles.secaoPagamento}>
+                                    <Text style={styles.label}>Forma de Pagamento</Text>
+                                    <View style={styles.gradePagamento}>
+                                        {/* Opção 1: Dinheiro / Conta */}
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.chipPagamento,
+                                                cartaoSelecionado === null && styles.chipPagamentoAtivo,
+                                            ]}
+                                            onPress={() => setCartaoSelecionado(null)}
+                                        >
+                                            <Wallet
+                                                size={14}
+                                                color={cartaoSelecionado === null ? '#ffffff' : '#475569'}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.textoChipPagamento,
+                                                    cartaoSelecionado === null && styles.textoChipPagamentoAtivo,
+                                                ]}
+                                            >
+                                                Conta / Dinheiro
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        {/* Opção Cartões de Crédito */}
+                                        {cartoes.map((c) => {
+                                            const ativo = cartaoSelecionado === c.id_cartao;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={c.id_cartao}
+                                                    style={[styles.chipPagamento, ativo && styles.chipPagamentoAtivo]}
+                                                    onPress={() => setCartaoSelecionado(c.id_cartao)}
+                                                >
+                                                    <CreditCardIcon
+                                                        size={14}
+                                                        color={ativo ? '#ffffff' : '#475569'}
+                                                    />
+                                                    <Text
+                                                        style={[
+                                                            styles.textoChipPagamento,
+                                                            ativo && styles.textoChipPagamentoAtivo,
+                                                        ]}
+                                                    >
+                                                        {c.nome}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            )}
+
+                            {/* Categorias */}
                             <View style={styles.categoriaHeader}>
                                 <Text style={styles.label}>
                                     Categoria *{' '}
@@ -329,12 +425,11 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Input Nova Categoria */}
                             {criandoCategoria && (
                                 <View style={styles.boxNovaCat}>
                                     <TextInput
                                         style={styles.inputNovaCat}
-                                        placeholder="Nome da categoria (Ex: Vendas)"
+                                        placeholder="Nome da categoria"
                                         placeholderTextColor="#94a3b8"
                                         value={nomeNovaCategoria}
                                         onChangeText={setNomeNovaCategoria}
@@ -353,15 +448,8 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </View>
                             )}
 
-                            {/* Grade de Categorias */}
                             {carregandoCategorias ? (
                                 <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 12 }} />
-                            ) : categoriasFiltradas.length === 0 ? (
-                                <View style={styles.boxSemCategorias}>
-                                    <Text style={styles.textoSemCategorias}>
-                                        Nenhuma categoria de {tipo} cadastrada. Clique em "+ Nova" para adicionar.
-                                    </Text>
-                                </View>
                             ) : (
                                 <View style={styles.gradeCategorias}>
                                     {categoriasFiltradas.map((cat) => {
@@ -372,23 +460,12 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                                 style={[
                                                     styles.chip,
                                                     ativa &&
-                                                    (tipo === 'receita'
-                                                        ? styles.chipReceitaAtivo
-                                                        : styles.chipDespesaAtivo),
+                                                    (tipo === 'receita' ? styles.chipReceitaAtivo : styles.chipDespesaAtivo),
                                                 ]}
                                                 onPress={() => setCategoriaSelecionada(cat)}
-                                                activeOpacity={0.7}
                                             >
-                                                <Tag
-                                                    size={13}
-                                                    color={ativa ? '#ffffff' : '#64748b'}
-                                                />
-                                                <Text
-                                                    style={[
-                                                        styles.textoChip,
-                                                        ativa && styles.textoChipAtivo,
-                                                    ]}
-                                                >
+                                                <Tag size={13} color={ativa ? '#ffffff' : '#64748b'} />
+                                                <Text style={[styles.textoChip, ativa && styles.textoChipAtivo]}>
                                                     {cat.nome}
                                                 </Text>
                                             </TouchableOpacity>
@@ -397,22 +474,20 @@ export function ModalTransacao({ visivel, aoFechar, aoSalvarSucesso }: ModalTran
                                 </View>
                             )}
 
-                            {/* Botão de Envio */}
+                            {/* Botão Salvar */}
                             <TouchableOpacity
-                                style={[
-                                    styles.botaoSalvar,
-                                    tipo === 'receita' ? styles.bgReceita : styles.bgDespesa,
-                                ]}
+                                style={[styles.botaoSalvar, tipo === 'receita' ? styles.bgReceita : styles.bgDespesa]}
                                 onPress={handleSalvar}
                                 disabled={salvando}
                             >
                                 {salvando ? (
                                     <ActivityIndicator color="#ffffff" />
                                 ) : (
-                                    <Text style={styles.textoBotaoSalvar}>Confirmar Transação</Text>
+                                    <Text style={styles.textoBotaoSalvar}>
+                                        {transacaoParaEditar ? 'Atualizar Transação' : 'Confirmar Transação'}
+                                    </Text>
                                 )}
                             </TouchableOpacity>
-
                         </ScrollView>
                     </KeyboardAvoidingView>
                 </View>
@@ -517,6 +592,38 @@ const styles = StyleSheet.create({
         color: '#0f172a',
         marginBottom: 14,
     },
+    secaoPagamento: {
+        marginBottom: 14,
+    },
+    gradePagamento: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    chipPagamento: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        backgroundColor: '#f8fafc',
+    },
+    chipPagamentoAtivo: {
+        backgroundColor: '#1e1b4b',
+        borderColor: '#1e1b4b',
+    },
+    textoChipPagamento: {
+        fontSize: 13,
+        color: '#475569',
+        fontWeight: '500',
+    },
+    textoChipPagamentoAtivo: {
+        color: '#ffffff',
+        fontWeight: 'bold',
+    },
     categoriaHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -599,19 +706,6 @@ const styles = StyleSheet.create({
         color: '#ef4444',
         fontWeight: 'normal',
         fontSize: 12,
-    },
-    boxSemCategorias: {
-        width: '100%',
-        padding: 14,
-        backgroundColor: '#f8fafc',
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-    },
-    textoSemCategorias: {
-        color: '#64748b',
-        fontSize: 13,
-        textAlign: 'center',
     },
     botaoSalvar: {
         paddingVertical: 14,
