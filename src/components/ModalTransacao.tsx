@@ -22,9 +22,13 @@ import {
     Tag,
     Plus,
     Check,
+    Edit2,
+    Trash2,
     CreditCard as CreditCardIcon,
     Wallet,
 } from 'lucide-react-native';
+
+
 
 export interface TransacaoItem {
     id?: number | string;
@@ -41,7 +45,7 @@ export interface TransacaoItem {
 }
 
 interface Categoria {
-    id: number;
+    id?: number;
     nome: string;
     tipo?: string;
     id_categoria?: number;
@@ -84,6 +88,12 @@ export function ModalTransacao({
     const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
     const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
+
+    // Estados para edição/renomeação de categoria
+    const [modalEditarCatVisivel, setModalEditarCatVisivel] = useState(false);
+    const [categoriaEmEdicao, setCategoriaEmEdicao] = useState<any | null>(null);
+    const [novoNomeCategoria, setNovoNomeCategoria] = useState('');
+    const [salvandoCategoria, setSalvandoCategoria] = useState(false);
 
     useEffect(() => {
         if (visivel) {
@@ -274,6 +284,104 @@ export function ModalTransacao({
         }
     }
 
+    function iniciarEdicaoCategoria(cat: any) {
+        setCategoriaEmEdicao(cat);
+        setNovoNomeCategoria(cat.nome);
+        setModalEditarCatVisivel(true);
+    }
+
+    async function handleSalvarEdicaoCategoria() {
+        if (!categoriaEmEdicao) return;
+        if (!novoNomeCategoria.trim()) {
+            Alert.alert('Atenção', 'O nome da categoria não pode ficar vazio.');
+            return;
+        }
+
+        const idCat = categoriaEmEdicao.id ?? categoriaEmEdicao.id_categoria;
+
+        try {
+            setSalvandoCategoria(true);
+            await api.put(`/categorias/${idCat}`, {
+                nome: novoNomeCategoria.trim(),
+            });
+
+            // Atualiza localmente na lista de categorias do modal
+            setCategorias((prev: any[]) =>
+                prev.map((c) =>
+                    (c.id ?? c.id_categoria) === idCat ? { ...c, nome: novoNomeCategoria.trim() } : c
+                )
+            );
+
+            // Se a categoria alterada for a selecionada atualmente, atualiza a seleção
+            if ((categoriaSelecionada?.id ?? categoriaSelecionada?.id_categoria) === idCat) {
+                setCategoriaSelecionada({
+                    ...categoriaSelecionada,
+                    id: Number(idCat),
+                    nome: novoNomeCategoria.trim(),
+                });
+            }
+
+            Alert.alert('Sucesso', 'Categoria atualizada com sucesso!');
+            setModalEditarCatVisivel(false);
+            setCategoriaEmEdicao(null);
+        } catch (error: any) {
+            console.error('Erro ao editar categoria:', error.response?.data || error.message);
+            const msg = error.response?.data?.error || 'Não foi possível atualizar a categoria.';
+            Alert.alert('Erro', msg);
+        } finally {
+            setSalvandoCategoria(false);
+        }
+    }
+
+    function handleExcluirCategoria() {
+        if (!categoriaEmEdicao) return;
+
+        const idCat = categoriaEmEdicao.id ?? categoriaEmEdicao.id_categoria;
+        const nomeCat = categoriaEmEdicao.nome;
+
+        Alert.alert(
+            'Excluir Categoria',
+            `Deseja realmente remover a categoria "${nomeCat}"?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setSalvandoCategoria(true);
+                            await api.delete(`/categorias/${idCat}`);
+
+                            // Remove da lista local imediatamente
+                            setCategorias((prev) =>
+                                prev.filter((c) => (c.id ?? c.id_categoria) !== idCat)
+                            );
+
+                            // Se for a categoria atualmente selecionada, desseleciona
+                            if ((categoriaSelecionada?.id ?? categoriaSelecionada?.id_categoria) === idCat) {
+                                setCategoriaSelecionada(null);
+                            }
+
+                            Alert.alert('Sucesso', 'Categoria removida com sucesso!');
+                            setModalEditarCatVisivel(false);
+                            setCategoriaEmEdicao(null);
+                        } catch (error: any) {
+                            console.error('Erro ao excluir categoria:', error.response?.data || error.message);
+                            const msg =
+                                error.response?.data?.error ||
+                                error.response?.data?.message ||
+                                'Não foi possível remover a categoria.';
+                            Alert.alert('Erro', msg);
+                        } finally {
+                            setSalvandoCategoria(false);
+                        }
+                    },
+                },
+            ]
+        );
+    }
+
+
     const categoriasFiltradas = categorias.filter((c) => {
         if (!c.tipo) return true;
         return c.tipo.includes(tipo.substring(0, 3));
@@ -420,7 +528,7 @@ export function ModalTransacao({
                                 >
                                     <Plus size={14} color="#4f46e5" />
                                     <Text style={styles.textoAddCat}>
-                                        {criandoCategoria ? 'Cancelar' : '+ Nova'}
+                                        {criandoCategoria ? 'Cancelar' : 'Nova'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -452,25 +560,26 @@ export function ModalTransacao({
                                 <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 12 }} />
                             ) : (
                                 <View style={styles.gradeCategorias}>
-                                    {categoriasFiltradas.map((cat) => {
-                                        const ativa = categoriaSelecionada?.id === cat.id;
-                                        return (
-                                            <TouchableOpacity
-                                                key={cat.id}
-                                                style={[
-                                                    styles.chip,
-                                                    ativa &&
-                                                    (tipo === 'receita' ? styles.chipReceitaAtivo : styles.chipDespesaAtivo),
-                                                ]}
-                                                onPress={() => setCategoriaSelecionada(cat)}
-                                            >
-                                                <Tag size={13} color={ativa ? '#ffffff' : '#64748b'} />
-                                                <Text style={[styles.textoChip, ativa && styles.textoChipAtivo]}>
-                                                    {cat.nome}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
+                                        {categoriasFiltradas.map((cat) => {
+                                            const ativa = categoriaSelecionada?.id === cat.id;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={cat.id}
+                                                    style={[
+                                                        styles.chip,
+                                                        ativa && (tipo === 'receita' ? styles.chipReceitaAtivo : styles.chipDespesaAtivo),
+                                                    ]}
+                                                    onPress={() => setCategoriaSelecionada(cat)}
+                                                    onLongPress={() => iniciarEdicaoCategoria(cat)} // 👈 GATILHO QUE FALTAVA
+                                                    delayLongPress={350}
+                                                >
+                                                    <Tag size={13} color={ativa ? '#ffffff' : '#64748b'} />
+                                                    <Text style={[styles.textoChip, ativa && styles.textoChipAtivo]}>
+                                                        {cat.nome}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
                                 </View>
                             )}
 
@@ -492,6 +601,81 @@ export function ModalTransacao({
                     </KeyboardAvoidingView>
                 </View>
             </TouchableWithoutFeedback>
+            {/* Mini-Modal para Renomear Categoria */}
+            <Modal
+                visible={modalEditarCatVisivel}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setModalEditarCatVisivel(false)}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.overlayMiniModal}>
+                        <View style={styles.caixaMiniModal}>
+                            {/* Topo do Modal: apenas título e botão de fechar */}
+                            <View style={styles.topoMiniModal}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Edit2 size={18} color="#4f46e5" />
+                                    <Text style={styles.tituloMiniModal}>Editar Categoria</Text>
+                                </View>
+
+                                <TouchableOpacity
+                                    onPress={() => setModalEditarCatVisivel(false)}
+                                    disabled={salvandoCategoria}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <X size={22} color="#64748b" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.labelMiniModal}>Nome da Categoria</Text>
+
+                            {/* Linha com Input + Botão de Excluir */}
+                            <View style={styles.linhaInputComAcao}>
+                                <TextInput
+                                    style={styles.inputMiniModalComAcao}
+                                    value={novoNomeCategoria}
+                                    onChangeText={setNovoNomeCategoria}
+                                    placeholder="Ex: Alimentação, Curso..."
+                                    placeholderTextColor="#94a3b8"
+                                    autoFocus
+                                />
+
+                                <TouchableOpacity
+                                    style={styles.botaoExcluirInput}
+                                    onPress={handleExcluirCategoria}
+                                    disabled={salvandoCategoria}
+                                    activeOpacity={0.7}
+                                >
+                                    <Trash2 size={20} color="#ef4444" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Botões de Ação */}
+                            <View style={styles.linhaBotoesMiniModal}>
+                                <TouchableOpacity
+                                    style={styles.botaoCancelarMiniModal}
+                                    onPress={() => setModalEditarCatVisivel(false)}
+                                    disabled={salvandoCategoria}
+                                >
+                                    <Text style={styles.textoBotaoCancelar}>Cancelar</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.botaoSalvarMiniModal}
+                                    onPress={handleSalvarEdicaoCategoria}
+                                    disabled={salvandoCategoria}
+                                >
+                                    {salvandoCategoria ? (
+                                        <ActivityIndicator size="small" color="#ffffff" />
+                                    ) : (
+                                        <Text style={styles.textoBotaoSalvarMini}>Salvar</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </Modal>
     );
 }
@@ -723,5 +907,104 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+
+    // Modal Editar Categoria
+    overlayMiniModal: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        zIndex: 9999,
+        elevation: 20,
+    },
+    caixaMiniModal: {
+        width: '100%',
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        padding: 20,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+    },
+    topoMiniModal: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    tituloMiniModal: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#0f172a',
+    },
+    labelMiniModal: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#475569',
+        marginBottom: 8,
+    },
+    linhaInputComAcao: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 20,
+    },
+    inputMiniModalComAcao: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontSize: 15,
+        color: '#0f172a',
+    },
+    botaoExcluirInput: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: '#fee2e2',
+        borderWidth: 1,
+        borderColor: '#fecaca',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    linhaBotoesMiniModal: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    botaoCancelarMiniModal: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        alignItems: 'center',
+    },
+    textoBotaoCancelar: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    botaoSalvarMiniModal: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: '#4f46e5',
+        alignItems: 'center',
+    },
+    textoBotaoSalvarMini: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#ffffff',
     },
 });
