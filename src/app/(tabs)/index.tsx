@@ -20,6 +20,9 @@ import {
     TrendingDown,
     Plus,
     CreditCard,
+    ChevronLeft,
+    ChevronRight,
+    Calendar,
 } from 'lucide-react-native';
 import { ModalTransacao } from '@/components/ModalTransacao';
 
@@ -46,8 +49,16 @@ interface ResumoFinanceiro {
     totalDespesas: number;
 }
 
+const MESES = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
 export default function Dashboard() {
     const { usuario } = useAuth();
+
+    // Estado da data do seletor (inicializa no mês/ano atual)
+    const [dataSelecionada, setDataSelecionada] = useState(new Date());
 
     const [resumo, setResumo] = useState<ResumoFinanceiro>({
         saldoTotal: 0,
@@ -68,7 +79,7 @@ export default function Dashboard() {
     }
 
     function formatarDataHora(item: Transacao): string {
-        const rawData = item.created_at || item.criado_em || item.data_transacao || item.data;
+        const rawData = item.data || item.data_transacao || item.created_at || item.criado_em;
         if (!rawData) return '';
 
         try {
@@ -118,24 +129,48 @@ export default function Dashboard() {
         return null;
     }
 
-    async function carregarDados() {
+    // Navegar entre meses
+    function mudarMes(direcao: 'anterior' | 'proximo') {
+        const novaData = new Date(dataSelecionada);
+        if (direcao === 'anterior') {
+            novaData.setMonth(novaData.getMonth() - 1);
+        } else {
+            novaData.setMonth(novaData.getMonth() + 1);
+        }
+        setDataSelecionada(novaData);
+    }
+
+    // Gera o primeiro e último dia do mês para a consulta SQL
+    function obterIntervaloMes(data: Date) {
+        const ano = data.getFullYear();
+        const mes = data.getMonth();
+        const primeiroDia = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+        const ultimoDiaNum = new Date(ano, mes + 1, 0).getDate();
+        const ultimoDia = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
+        return { primeiroDia, ultimoDia };
+    }
+
+    const carregarDados = useCallback(async () => {
         try {
-            let saldoCalculado = 0;
+            const { primeiroDia, ultimoDia } = obterIntervaloMes(dataSelecionada);
+
+            // 1. Busca transações do período
+            const resTransacoes = await api.get('/transacoes', {
+                params: {
+                    data_inicio: primeiroDia,
+                    data_fim: ultimoDia,
+                },
+            });
+            const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
+
             let receitasCalculadas = 0;
             let despesasCalculadas = 0;
 
-            // 1. Busca lista de transações
-            const resTransacoes = await api.get('/transacoes');
-            const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
-
             if (Array.isArray(listaBruta)) {
                 const listaOrdenada = [...listaBruta].sort((a: any, b: any) => {
-                    const dataA = new Date(a.created_at || a.criado_em || a.data_transacao || a.data || 0).getTime();
-                    const dataB = new Date(b.created_at || b.criado_em || b.data_transacao || b.data || 0).getTime();
-
-                    if (dataB !== dataA) {
-                        return dataB - dataA;
-                    }
+                    const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
+                    const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
+                    if (dataB !== dataA) return dataB - dataA;
 
                     const idA = Number(a.id ?? a.id_transacao ?? 0);
                     const idB = Number(b.id ?? b.id_transacao ?? 0);
@@ -154,35 +189,30 @@ export default function Dashboard() {
                         despesasCalculadas += val;
                     }
                 });
-
-                saldoCalculado = receitasCalculadas - despesasCalculadas;
             }
 
-            // 2. Resumo
+            // 2. Busca resumo filtrado na API
             try {
-                const resResumo = await api.get('/dashboard/resumo');
+                const resResumo = await api.get('/dashboard/resumo', {
+                    params: {
+                        data_inicio: primeiroDia,
+                        data_fim: ultimoDia,
+                    },
+                });
                 const d = resResumo.data || {};
 
-                const recApi = Number(d.totalReceitas ?? d.total_receitas ?? d.receitas ?? 0);
-                const despApi = Number(d.totalDespesas ?? d.total_despesas ?? d.despesas ?? 0);
-                const saldoApi = Number(d.saldoTotal ?? d.saldo_atual ?? d.saldo ?? (recApi - despApi));
+                const recApi = Number(d.entradas ?? d.totalReceitas ?? d.receitas ?? 0);
+                const despApi = Number(d.saidas ?? d.totalDespesas ?? d.despesas ?? 0);
+                const saldoApi = Number(d.saldo ?? d.saldoTotal ?? d.saldo_atual ?? 0);
 
-                if (recApi === 0 && despApi === 0 && (receitasCalculadas > 0 || despesasCalculadas > 0)) {
-                    setResumo({
-                        saldoTotal: saldoCalculado,
-                        totalReceitas: receitasCalculadas,
-                        totalDespesas: despesasCalculadas,
-                    });
-                } else {
-                    setResumo({
-                        saldoTotal: saldoApi,
-                        totalReceitas: recApi,
-                        totalDespesas: despApi,
-                    });
-                }
+                setResumo({
+                    saldoTotal: saldoApi,
+                    totalReceitas: recApi > 0 ? recApi : receitasCalculadas,
+                    totalDespesas: despApi > 0 ? despApi : despesasCalculadas,
+                });
             } catch {
                 setResumo({
-                    saldoTotal: saldoCalculado,
+                    saldoTotal: receitasCalculadas - despesasCalculadas,
                     totalReceitas: receitasCalculadas,
                     totalDespesas: despesasCalculadas,
                 });
@@ -193,18 +223,20 @@ export default function Dashboard() {
             setCarregando(false);
             setAtualizando(false);
         }
-    }
+    }, [dataSelecionada]);
 
     useFocusEffect(
         useCallback(() => {
             carregarDados();
-        }, [])
+        }, [carregarDados])
     );
 
     function handleRefresh() {
         setAtualizando(true);
         carregarDados();
     }
+
+    const mesExtenso = `${MESES[dataSelecionada.getMonth()]} de ${dataSelecionada.getFullYear()}`;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -230,21 +262,45 @@ export default function Dashboard() {
                             <Text style={styles.nomeUsuario}>{usuario?.nome || 'Usuário'}</Text>
                         </View>
 
+                        {/* Seletor de Mês e Ano */}
+                        <View style={styles.containerSeletorMes}>
+                            <TouchableOpacity
+                                style={styles.botaoSetaMes}
+                                onPress={() => mudarMes('anterior')}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <ChevronLeft size={20} color="#475569" />
+                            </TouchableOpacity>
+
+                            <View style={styles.boxMesTexto}>
+                                <Calendar size={15} color="#4f46e5" />
+                                <Text style={styles.textoMesExtenso}>{mesExtenso}</Text>
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.botaoSetaMes}
+                                onPress={() => mudarMes('proximo')}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <ChevronRight size={20} color="#475569" />
+                            </TouchableOpacity>
+                        </View>
+
                         {/* Card Saldo Atual */}
                         <View style={styles.cardSaldo}>
                             <View style={styles.cardSaldoTopo}>
-                                <Text style={styles.labelSaldo}>Saldo Atual</Text>
+                                <Text style={styles.labelSaldo}>Saldo Acumulado</Text>
                                 <Wallet color="#ffffff" size={24} />
                             </View>
                             <Text style={styles.valorSaldo}>{formatarMoeda(resumo.saldoTotal)}</Text>
                         </View>
 
-                        {/* Cards de Entradas e Saídas */}
+                        {/* Cards de Entradas e Saídas do Mês */}
                         <View style={styles.linhaCards}>
                             <View style={[styles.cardPequeno, styles.bordaReceita]}>
                                 <View style={styles.topoCardPequeno}>
                                     <ArrowUpCircle color="#10b981" size={20} />
-                                    <Text style={styles.labelPequeno}>Receitas</Text>
+                                    <Text style={styles.labelPequeno}>Receitas do Mês</Text>
                                 </View>
                                 <Text style={styles.valorReceita}>{formatarMoeda(resumo.totalReceitas)}</Text>
                             </View>
@@ -252,19 +308,19 @@ export default function Dashboard() {
                             <View style={[styles.cardPequeno, styles.bordaDespesa]}>
                                 <View style={styles.topoCardPequeno}>
                                     <ArrowDownCircle color="#ef4444" size={20} />
-                                    <Text style={styles.labelPequeno}>Despesas</Text>
+                                    <Text style={styles.labelPequeno}>Despesas do Mês</Text>
                                 </View>
                                 <Text style={styles.valorDespesa}>{formatarMoeda(resumo.totalDespesas)}</Text>
                             </View>
                         </View>
 
-                        {/* Lista de Transações Ordenada */}
+                        {/* Lista de Transações do Mês */}
                         <View style={styles.secao}>
-                            <Text style={styles.tituloSecao}>Últimas Transações</Text>
+                            <Text style={styles.tituloSecao}>Transações de {MESES[dataSelecionada.getMonth()]}</Text>
 
                             {transacoes.length === 0 ? (
                                 <View style={styles.cardVazio}>
-                                    <Text style={styles.textoVazio}>Nenhuma transação registrada ainda.</Text>
+                                    <Text style={styles.textoVazio}>Nenhuma movimentação registrada neste mês.</Text>
                                 </View>
                             ) : (
                                 transacoes.map((item: any, index) => {
@@ -367,7 +423,7 @@ const styles = StyleSheet.create({
         paddingBottom: 90,
     },
     header: {
-        marginBottom: 20,
+        marginBottom: 12,
     },
     saudacao: {
         fontSize: 14,
@@ -377,6 +433,36 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         color: '#0f172a',
+    },
+    containerSeletorMes: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#ffffff',
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    botaoSetaMes: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#f8fafc',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    boxMesTexto: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    textoMesExtenso: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1e293b',
     },
     cardSaldo: {
         backgroundColor: '#4f46e5',
@@ -431,7 +517,7 @@ const styles = StyleSheet.create({
         marginBottom: 6,
     },
     labelPequeno: {
-        fontSize: 13,
+        fontSize: 12,
         color: '#64748b',
         fontWeight: '500',
     },
