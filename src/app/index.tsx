@@ -42,6 +42,7 @@ export default function Onboarding() {
 
   const Item = PASSOS[passoAtual];
   const Icone = Item.icone;
+  
 
   return (
     <SafeAreaView style={styles.container}>

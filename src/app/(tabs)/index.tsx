@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -24,6 +24,7 @@ import {
     ChevronRight,
     Calendar,
 } from 'lucide-react-native';
+import { PieChart } from 'react-native-gifted-charts';
 import { ModalTransacao } from '@/components/ModalTransacao';
 
 interface Transacao {
@@ -54,12 +55,20 @@ const MESES = [
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+const CORES_GRAFICO = [
+    '#4f46e5', // Índigo
+    '#ef4444', // Vermelho
+    '#f59e0b', // Âmbar
+    '#10b981', // Verde esmeralda
+    '#06b6d4', // Ciano
+    '#8b5cf6', // Roxo
+    '#ec4899', // Rosa
+];
+
 export default function Dashboard() {
     const { usuario } = useAuth();
 
-    // Estado da data do seletor (inicializa no mês/ano atual)
     const [dataSelecionada, setDataSelecionada] = useState(new Date());
-
     const [resumo, setResumo] = useState<ResumoFinanceiro>({
         saldoTotal: 0,
         totalReceitas: 0,
@@ -129,7 +138,6 @@ export default function Dashboard() {
         return null;
     }
 
-    // Navegar entre meses
     function mudarMes(direcao: 'anterior' | 'proximo') {
         const novaData = new Date(dataSelecionada);
         if (direcao === 'anterior') {
@@ -140,7 +148,6 @@ export default function Dashboard() {
         setDataSelecionada(novaData);
     }
 
-    // Gera o primeiro e último dia do mês para a consulta SQL
     function obterIntervaloMes(data: Date) {
         const ano = data.getFullYear();
         const mes = data.getMonth();
@@ -191,7 +198,7 @@ export default function Dashboard() {
                 });
             }
 
-            // 2. Busca resumo filtrado na API
+            // 2. Busca resumo na API
             try {
                 const resResumo = await api.get('/dashboard/resumo', {
                     params: {
@@ -235,6 +242,43 @@ export default function Dashboard() {
         setAtualizando(true);
         carregarDados();
     }
+
+    // 3. Agrupamento das despesas por categoria para o gráfico (calculado via useMemo)
+    const dadosGrafico = useMemo(() => {
+        const mapaCategorias: Record<string, number> = {};
+
+        transacoes.forEach((item: any) => {
+            const t = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+            if (t.includes('desp')) {
+                const nomeCat = extrairNomeCategoria(item);
+                const valor = Math.abs(Number(item.valor)) || 0;
+                mapaCategorias[nomeCat] = (mapaCategorias[nomeCat] || 0) + valor;
+            }
+        });
+
+        const totalDespesasGerais = Object.values(mapaCategorias).reduce((acc, v) => acc + v, 0);
+
+        if (totalDespesasGerais === 0) return [];
+
+        return Object.entries(mapaCategorias).map(([nome, valor], index) => {
+            const porcentagem = ((valor / totalDespesasGerais) * 100).toFixed(0);
+            return {
+                value: valor,
+                color: CORES_GRAFICO[index % CORES_GRAFICO.length],
+                text: `${porcentagem}%`,
+                nome,
+                valorFormatado: valor.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                }),
+                // propriedades de centralização na área do arco
+                textColor: '#ffffff',
+                textSize: 11,
+                fontWeight: 'bold',
+                shiftTextY: Number(porcentagem) > 50 ? +6 : 0,
+            };
+        });
+    }, [transacoes]);
 
     const mesExtenso = `${MESES[dataSelecionada.getMonth()]} de ${dataSelecionada.getFullYear()}`;
 
@@ -313,6 +357,54 @@ export default function Dashboard() {
                                 <Text style={styles.valorDespesa}>{formatarMoeda(resumo.totalDespesas)}</Text>
                             </View>
                         </View>
+
+                        {/* Card do Gráfico Donut de Despesas */}
+                        {dadosGrafico.length > 0 && (
+                            <View style={styles.cardGrafico}>
+                                <Text style={styles.tituloGrafico}>Despesas por Categoria</Text>
+                                <Text style={styles.subtituloGrafico}>Distribuição percentual deste mês</Text>
+
+                                <View style={styles.conteudoGrafico}>
+                                    <PieChart
+                                        data={dadosGrafico}
+                                        donut
+                                        showText
+                                            textColor="ffffff"
+                                        textSize={11}
+                                        fontWeight="bold"
+                                        radius={75}
+                                        innerRadius={45}
+                                        innerCircleColor="#ffffff"
+                                        labelsPosition="outward"
+                                        centerLabelComponent={() => (
+                                            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                                                <Text style={{ fontSize: 10, color: '#64748b' }}>Total</Text>
+                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0f172a' }}>
+                                                    {formatarMoeda(resumo.totalDespesas)}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    />
+
+                                    {/* Legenda */}
+                                    <View style={styles.legendaGrafico}>
+                                        {dadosGrafico.map((item, idx) => (
+                                            <View key={idx} style={styles.itemLegenda}>
+                                                <View style={[styles.pontoCorLegenda, { backgroundColor: item.color }]} />
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={styles.nomeCatLegenda} numberOfLines={1}>
+                                                        {item.nome}
+                                                    </Text>
+                                                    <Text style={styles.valorCatLegenda}>
+                                                        {item.valorFormatado} ({item.text})
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            </View>
+                        )}
 
                         {/* Lista de Transações do Mês */}
                         <View style={styles.secao}>
@@ -530,6 +622,56 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: '#ef4444',
+    },
+    cardGrafico: {
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        marginBottom: 20,
+        elevation: 1,
+    },
+    tituloGrafico: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0f172a',
+    },
+    subtituloGrafico: {
+        fontSize: 12,
+        color: '#64748b',
+        marginBottom: 16,
+        marginTop: 2,
+    },
+    conteudoGrafico: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        gap: 12,
+    },
+    legendaGrafico: {
+        flex: 1,
+        gap: 8,
+        paddingLeft: 8,
+    },
+    itemLegenda: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    pontoCorLegenda: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    nomeCatLegenda: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#334155',
+    },
+    valorCatLegenda: {
+        fontSize: 11,
+        color: '#64748b',
     },
     secao: {
         marginTop: 4,
