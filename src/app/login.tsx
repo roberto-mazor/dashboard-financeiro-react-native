@@ -20,7 +20,6 @@ export default function Login() {
         try {
             setCarregando(true);
             await login(email, senha);
-            // Redireciona diretamente para o index do grupo de tabs
             router.replace('/(tabs)');
         } catch (error: any) {
             const mensagemBackend = error.response?.data?.error || error.response?.data?.message;
@@ -55,6 +54,7 @@ export default function Login() {
                     keyboardType="email-address"
                 />
 
+                <Text style={styles.label}>Senha</Text>
                 <TextInput
                     style={styles.input}
                     placeholder="••••••••"
@@ -77,6 +77,14 @@ export default function Login() {
                         <Text style={styles.textoBotao}>Entrar</Text>
                     )}
                 </TouchableOpacity>
+
+                {/* Link para Cadastro */}
+                <View style={styles.footerCadastro}>
+                    <Text style={styles.textoFooter}>Não tem uma conta? </Text>
+                    <TouchableOpacity onPress={() => router.push('/cadastro')}>
+                        <Text style={styles.linkCadastro}>Cadastre-se</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
         </SafeAreaView>
@@ -145,5 +153,20 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    footerCadastro: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    textoFooter: {
+        fontSize: 14,
+        color: '#64748b',
+    },
+    linkCadastro: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#4f46e5',
     },
 });
