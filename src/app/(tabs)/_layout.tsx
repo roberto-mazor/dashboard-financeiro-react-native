@@ -42,6 +42,16 @@ export default function TabsLayout() {
           ),
         }}
       />
+      
+      <Tabs.Screen
+        name="cartoes"
+        options={{
+          title: 'Cartões',
+          tabBarIcon: ({ color, size }) => (
+            <CreditCard size={size ?? 22} color={color} />
+          ),
+        }}
+      />
 
       <Tabs.Screen
         name="perfil"
@@ -49,16 +59,6 @@ export default function TabsLayout() {
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => (
             <User size={size ?? 22} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="cartoes"
-        options={{
-          title: 'Cartões',
-          tabBarIcon: ({ color, size }) => (
-            <CreditCard size={size ?? 22} color={color} />
           ),
         }}
       />
