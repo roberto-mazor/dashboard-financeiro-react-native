@@ -388,6 +388,7 @@ export function ModalTransacao({
     });
 
     return (
+        // modal editar transação
         <Modal visible={visivel} transparent animationType="slide" onRequestClose={aoFechar}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.overlay}>
