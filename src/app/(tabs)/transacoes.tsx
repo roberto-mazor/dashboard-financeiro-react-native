@@ -128,10 +128,14 @@ export default function TransacoesScreen() {
 
             if (Array.isArray(lista)) {
                 const ordenadas = [...lista].sort((a: any, b: any) => {
+                    // 1. Converte e extrai o timestamp de cada item
                     const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
                     const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
+                    
+                    // 2. Se as datas forem diferentes, ordena pela data mais recente primeiro
                     if (dataB !== dataA) return dataB - dataA;
 
+                    // 3. Critério de desempate: ordena pelo ID mais alto
                     const idA = Number(a.id ?? a.id_transacao ?? 0);
                     const idB = Number(b.id ?? b.id_transacao ?? 0);
                     return idB - idA;
