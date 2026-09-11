@@ -1,50 +1,162 @@
-# Welcome to your Expo app 👋
+<div align="center">
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# 💰 Dashboard Financeiro
 
-## Get started
+Aplicativo mobile para acompanhar receitas, despesas, saldo e cartões em um único lugar.
+Gerencie sua vida financeira com uma interface objetiva, segura e otimizada para Android, iOS e Web.
 
-1. Install dependencies
+<!-- Substitua os marcadores abaixo pelos badges do repositório quando disponíveis. -->
+![Status](https://img.shields.io/badge/status-em%20desenvolvimento-eab308?style=for-the-badge)
+![Expo](https://img.shields.io/badge/Expo%2054-000020?style=for-the-badge&logo=expo&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-16a34a?style=for-the-badge)
+
+</div>
+
+## 📱 Demonstração
+
+Adicione aqui as capturas de tela ou um GIF do aplicativo. A tabela abaixo mantém as imagens organizadas lado a lado no GitHub:
+
+<div align="center">
+
+| Dashboard | Transações | Cartões |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/dashboard.png" alt="Tela de dashboard" width="220"> | <img src="docs/screenshots/transacoes.png" alt="Tela de transações" width="220"> | <img src="docs/screenshots/cartoes.png" alt="Tela de cartões" width="220"> |
+
+</div>
+
+> 💡 Para adicionar um GIF, inclua o arquivo em `docs/screenshots/` e use `![Demonstração do aplicativo](docs/screenshots/demo.gif)`.
+
+## 🚀 Principais Recursos
+
+- 🔐 Cadastro, login e logout com autenticação por token JWT.
+- 💾 Persistência segura da sessão usando `expo-secure-store`.
+- 📊 Dashboard mensal com saldo, receitas, despesas e transações recentes.
+- 💸 Cadastro, edição, listagem e exclusão de transações.
+- 🏷️ Criação, edição e exclusão de categorias de receitas e despesas.
+- 💳 Cadastro e gerenciamento de cartões de crédito.
+- 🧾 Pagamento de fatura com restauração do limite disponível.
+- 📅 Filtro de dados por período e consulta de transações por data.
+- 📱 Navegação por abas entre início, transações, perfil e cartões.
+- 🌐 Execução multiplataforma em Android, iOS e Web.
+- ⚡ Atualização automática dos dados após operações de inclusão, edição ou exclusão.
+
+## 🛠️ Tecnologias
+
+| Categoria | Tecnologias e bibliotecas |
+| --- | --- |
+| Plataforma | React Native `0.81`, Expo `54` e Expo Router `6` |
+| Linguagem | TypeScript `5.9` |
+| Interface | React `19`, React Native SVG, Expo Linear Gradient e Expo Image |
+| Navegação | Expo Router e React Navigation Bottom Tabs |
+| Requisições | Axios |
+| Persistência segura | Expo Secure Store |
+| Ícones e interação | Lucide React Native, Expo Vector Icons e Expo Haptics |
+| Visualização | React Native Gifted Charts |
+| Animações e gestos | React Native Reanimated, Gesture Handler e Worklets |
+| Qualidade | ESLint, `eslint-config-expo` e Prettier Tailwind CSS plugin |
+
+## 🔌 API
+
+O aplicativo consome a API REST hospedada em:
+
+```text
+https://dashboard-financeiro-projeto-pi-bac.vercel.app/api
+```
+
+Após o login, o token retornado pela API é salvo no `expo-secure-store` e enviado automaticamente nas requisições protegidas:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Rotas disponíveis
+
+| Método | Rota | Descrição | Autenticação |
+| :---: | --- | --- | :---: |
+| `POST` | `/auth/register` | Cria uma nova conta com nome, e-mail e senha | Não |
+| `POST` | `/auth/login` | Autentica o usuário e retorna o token de acesso | Não |
+| `GET` | `/dashboard/resumo` | Retorna saldo, entradas e saídas do período informado | Sim |
+| `GET` | `/transacoes` | Lista transações; aceita `data_inicio` e `data_fim` | Sim |
+| `POST` | `/transacoes` | Cadastra uma receita ou despesa | Sim |
+| `PUT` | `/transacoes/:id` | Atualiza uma transação existente | Sim |
+| `DELETE` | `/transacoes/:id` | Exclui uma transação | Sim |
+| `GET` | `/categorias` | Lista as categorias do usuário | Sim |
+| `POST` | `/categorias` | Cria uma categoria com nome e tipo | Sim |
+| `PUT` | `/categorias/:id` | Atualiza o nome de uma categoria | Sim |
+| `DELETE` | `/categorias/:id` | Exclui uma categoria | Sim |
+| `GET` | `/cartoes` | Lista os cartões cadastrados | Sim |
+| `POST` | `/cartoes` | Cadastra um cartão de crédito | Sim |
+| `POST` | `/cartoes/:id/pagar-fatura` | Paga a fatura e restaura o limite disponível | Sim |
+| `DELETE` | `/cartoes/:id` | Remove um cartão | Sim |
+
+O cliente também trata respostas `401`: remove a sessão armazenada e redireciona o usuário para a tela de login.
+
+## 💻 Como Executar o Projeto
+
+### Pré-requisitos
+
+- [Node.js](https://nodejs.org/) em uma versão LTS.
+- npm, instalado junto com o Node.js.
+- [Expo Go](https://expo.dev/go) em um dispositivo físico ou um emulador Android/iOS.
+- Para emuladores: [Android Studio](https://developer.android.com/studio) ou Xcode no macOS.
+- Acesso à API descrita na seção [API](#-api).
+
+### Instalação
+
+1. Clone o repositório:
+
+   ```bash
+   git clone https://github.com/SEU-USUARIO/dashboard-financeiro-react-native.git
+   cd dashboard-financeiro-react-native
+   ```
+
+2. Instale as dependências:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+3. Inicie o servidor do Expo:
 
    ```bash
-   npx expo start
+   npm start
    ```
 
-In the output, you'll find options to open the app in a
+4. Abra o aplicativo usando o QR Code no Expo Go ou escolha uma das opções:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   npm run android
+   npm run ios
+   npm run web
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Verificação de qualidade
 
-## Get a fresh project
-
-When you're ready, run:
+Execute o lint antes de enviar alterações:
 
 ```bash
-npm run reset-project
+npm run lint
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🤝 Como Contribuir
 
-## Learn more
+1. Faça um fork do projeto.
+2. Crie uma branch para sua alteração:
 
-To learn more about developing your project with Expo, look at the following resources:
+   ```bash
+   git checkout -b feat/minha-melhoria
+   ```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+3. Implemente a mudança e valide com `npm run lint`.
+4. Faça um commit seguindo [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/).
+5. Envie a branch e abra um Pull Request descrevendo o problema, a solução e como testar.
 
-## Join the community
+## 📝 Licença
 
-Join our community of developers creating universal apps.
+Este projeto está distribuído sob a licença [MIT](LICENSE). Consulte o arquivo `LICENSE` para obter o texto completo.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+<div align="center">
+  Desenvolvido com React Native, Expo e TypeScript
+</div>
