@@ -484,7 +484,7 @@ export default function Dashboard() {
                         style={styles.fab}
                         onPress={() => setModalAberto(true)}
                         activeOpacity={0.85}
-                    >
+                    > 
                         <Plus color="#ffffff" size={28} />
                     </TouchableOpacity>
 
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
     textoVermelho: {
         color: '#ef4444',
     },
-    fab: {
+    fab: { // botão adicionar / abrir modal 
         position: 'absolute',
         bottom: 24,
         right: 20,
