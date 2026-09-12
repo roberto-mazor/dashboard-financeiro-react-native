@@ -39,7 +39,7 @@ export default function TransacoesScreen() {
     const [carregando, setCarregando] = useState(true);
     const [atualizando, setAtualizando] = useState(false);
     const [busca, setBusca] = useState('');
-    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas');
+    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas'); // Pode ser: 'todas' | 'receitas' | 'despesas'
 
     const [modalAberto, setModalAberto] = useState(false);
     const [transacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
@@ -175,8 +175,6 @@ export default function TransacoesScreen() {
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Excluir',
-                    style: 'destructive',
                     onPress: async () => {
                         try {
                             await api.delete(`/transacoes/${idTransacao}`);
@@ -245,7 +243,7 @@ export default function TransacoesScreen() {
                 />
             </View>
 
-            {/* Filtro por Abas */}
+            {/* Filtro por tags */}
             <View style={styles.abasContainer}>
                 <TouchableOpacity
                     style={[styles.aba, filtroTipo === 'todas' && styles.abaAtiva]}
@@ -387,6 +385,7 @@ export default function TransacoesScreen() {
                 />
             )}
 
+            {/* Botão flutueante - icone Mais + Plus*/}
             <TouchableOpacity style={styles.fab} onPress={abrirCriacao} activeOpacity={0.85}>
                 <Plus color="#ffffff" size={28} />
             </TouchableOpacity>
@@ -625,7 +624,7 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontSize: 14,
     },
-    fab: {
+    fab: { // botão adicionar / abrir modal 
         position: 'absolute',
         bottom: 24,
         right: 20,
