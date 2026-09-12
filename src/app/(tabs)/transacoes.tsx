@@ -131,7 +131,7 @@ export default function TransacoesScreen() {
                     // 1. Converte e extrai o timestamp de cada item
                     const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
                     const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
-                    
+
                     // 2. Se as datas forem diferentes, ordena pela data mais recente primeiro
                     if (dataB !== dataA) return dataB - dataA;
 
@@ -338,7 +338,7 @@ export default function TransacoesScreen() {
                                             <Text style={styles.categoriaTransacao}>{nomeCat}</Text>
                                             {dataFmt ? <Text style={styles.dataTransacao}> • {dataFmt}</Text> : null}
 
-                                            {/* BADGE DE CARTÃO */}
+                                            {/* BADGE DE CARTÃO - tag que identifica trasação com origem do cartão*/}
                                             {nomeCartao && (
                                                 <View style={styles.badgeCartao}>
                                                     <CreditCard size={10} color="#4f46e5" />
@@ -367,7 +367,8 @@ export default function TransacoesScreen() {
                                             onPress={() => abrirEdicao(item)}
                                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                         >
-                                            <Edit2 size={15} color="#94a3b8" />
+                                            {/* Icone de lapis*/}
+                                            <Edit2 size={15} color="#94a3b8" /> 
                                         </TouchableOpacity>
 
                                         <TouchableOpacity
@@ -375,6 +376,7 @@ export default function TransacoesScreen() {
                                             onPress={() => handleExcluir(item)}
                                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                         >
+                                            {/* Icone de lixeira*/}
                                             <Trash2 size={15} color="#ef4444" />
                                         </TouchableOpacity>
                                     </View>
