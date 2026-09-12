@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#64748b',
     },
-    fab: {
+    fab: { // botão adicionar / abrir modal 
         position: 'absolute',
         bottom: 24,
         right: 20,
