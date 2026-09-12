@@ -10,7 +10,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Wallet, PieChart, ShieldCheck } from 'lucide-react-native';
 
-// Dados das 3 Splash Screens baseadas no Figma
+// Dados das 3 Splash Screens
 const PASSOS = [
   {
     id: 1,
