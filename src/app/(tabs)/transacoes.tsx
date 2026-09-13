@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -6,13 +6,9 @@ import {
     TextInput,
     TouchableOpacity,
     FlatList,
-    ActivityIndicator,
     Alert,
-    RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '@/services/api';
-import { useFocusEffect } from 'expo-router';
 import {
     Search,
     TrendingUp,
@@ -33,13 +29,55 @@ const MESES = [
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+// Dados estáticos demonstratrivos
+const TRANSACOES_DEMO: TransacaoItem[] = [
+    {
+        id: 1,
+        id_transacao: 1,
+        descricao: 'Salário Mensal',
+        valor: 5200.00,
+        tipo: 'receita',
+        data: '2026-09-05',
+        categoria: { nome: 'Salário', tipo: 'receita' },
+        cartao: null,
+    } as any,
+    {
+        id: 2,
+        id_transacao: 2,
+        descricao: 'Supermercado Tauste',
+        valor: 642.50,
+        tipo: 'despesa',
+        data: '2026-09-08',
+        categoria: { nome: 'Alimentação', tipo: 'despesa' },
+        cartao: { nome: 'Nubank' },
+    } as any,
+    {
+        id: 3,
+        id_transacao: 3,
+        descricao: 'Assinatura Alura',
+        valor: 85.00,
+        tipo: 'despesa',
+        data: '2026-09-10',
+        categoria: { nome: 'Educação', tipo: 'despesa' },
+        cartao: { nome: 'Itaú' },
+    } as any,
+    {
+        id: 4,
+        id_transacao: 4,
+        descricao: 'Rendimento de Investimentos',
+        valor: 340.20,
+        tipo: 'receita',
+        data: '2026-09-12',
+        categoria: { nome: 'Investimentos', tipo: 'receita' },
+        cartao: null,
+    } as any,
+];
+
 export default function TransacoesScreen() {
     const [dataSelecionada, setDataSelecionada] = useState(new Date());
-    const [transacoes, setTransacoes] = useState<TransacaoItem[]>([]);
-    const [carregando, setCarregando] = useState(true);
-    const [atualizando, setAtualizando] = useState(false);
+    const [transacoes, setTransacoes] = useState<TransacaoItem[]>(TRANSACOES_DEMO);
     const [busca, setBusca] = useState('');
-    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas'); // Pode ser: 'todas' | 'receitas' | 'despesas'
+    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas');
 
     const [modalAberto, setModalAberto] = useState(false);
     const [transacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
@@ -53,7 +91,7 @@ export default function TransacoesScreen() {
     }
 
     function extrairTipoNormalizado(item: TransacaoItem): 'receita' | 'despesa' {
-        const raw = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+        const raw = String(item.tipo || (item as any).tipo_transacao || (item as any).categoria?.tipo || '').toLowerCase();
         return raw.includes('rec') ? 'receita' : 'despesa';
     }
 
@@ -101,61 +139,6 @@ export default function TransacoesScreen() {
         setDataSelecionada(novaData);
     }
 
-    function obterIntervaloMes(data: Date) {
-        const ano = data.getFullYear();
-        const mes = data.getMonth();
-        const primeiroDia = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
-        const ultimoDiaNum = new Date(ano, mes + 1, 0).getDate();
-        const ultimoDia = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
-        return { primeiroDia, ultimoDia };
-    }
-
-    const carregarTransacoes = useCallback(async () => {
-        try {
-            const { primeiroDia, ultimoDia } = obterIntervaloMes(dataSelecionada);
-
-            const params: any = {};
-            // Se não houver busca em digitação, restringe ao mês selecionado
-            if (!busca.trim()) {
-                params.data_inicio = primeiroDia;
-                params.data_fim = ultimoDia;
-            } else {
-                params.busca = busca.trim();
-            }
-
-            const res = await api.get('/transacoes', { params });
-            const lista: TransacaoItem[] = res.data?.transacoes || res.data || [];
-
-            if (Array.isArray(lista)) {
-                const ordenadas = [...lista].sort((a: any, b: any) => {
-                    // 1. Converte e extrai o timestamp de cada item
-                    const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
-                    const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
-
-                    // 2. Se as datas forem diferentes, ordena pela data mais recente primeiro
-                    if (dataB !== dataA) return dataB - dataA;
-
-                    // 3. Critério de desempate: ordena pelo ID mais alto
-                    const idA = Number(a.id ?? a.id_transacao ?? 0);
-                    const idB = Number(b.id ?? b.id_transacao ?? 0);
-                    return idB - idA;
-                });
-                setTransacoes(ordenadas);
-            }
-        } catch (error: any) {
-            console.error('Erro ao listar transações:', error.response?.data || error.message);
-        } finally {
-            setCarregando(false);
-            setAtualizando(false);
-        }
-    }, [dataSelecionada, busca]);
-
-    useFocusEffect(
-        useCallback(() => {
-            carregarTransacoes();
-        }, [carregarTransacoes])
-    );
-
     function abrirEdicao(item: TransacaoItem) {
         setTransacaoSelecionada(item);
         setModalAberto(true);
@@ -167,25 +150,20 @@ export default function TransacoesScreen() {
     }
 
     function handleExcluir(item: TransacaoItem) {
-        const idTransacao = item.id ?? item.id_transacao;
-
         Alert.alert(
             'Confirmar Exclusão',
             `Deseja realmente apagar a transação "${item.descricao}"?`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
-                    onPress: async () => {
-                        try {
-                            await api.delete(`/transacoes/${idTransacao}`);
-                            setTransacoes((prev) =>
-                                prev.filter((t) => (t.id ?? t.id_transacao) !== idTransacao)
-                            );
-                            Alert.alert('Sucesso', 'Transação excluída!');
-                        } catch (error: any) {
-                            const msg = error.response?.data?.error || 'Não foi possível excluir a transação.';
-                            Alert.alert('Erro', msg);
-                        }
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: () => {
+                        const idTransacao = item.id ?? item.id_transacao;
+                        setTransacoes((prev) =>
+                            prev.filter((t) => (t.id ?? t.id_transacao) !== idTransacao)
+                        );
+                        Alert.alert('Sucesso', 'Transação excluída em modo demonstração!');
                     },
                 },
             ]
@@ -194,7 +172,16 @@ export default function TransacoesScreen() {
 
     const transacoesFiltradas = transacoes.filter((item) => {
         const tipoItem = extrairTipoNormalizado(item);
-        return filtroTipo === 'todas' || tipoItem === filtroTipo;
+        const bateTipo = filtroTipo === 'todas' || tipoItem === filtroTipo;
+
+        if (!busca.trim()) return bateTipo;
+
+        const termo = busca.toLowerCase().trim();
+        const bateBusca =
+            item.descricao.toLowerCase().includes(termo) ||
+            extrairNomeCategoria(item).toLowerCase().includes(termo);
+
+        return bateTipo && bateBusca;
     });
 
     const mesExtenso = `${MESES[dataSelecionada.getMonth()]} de ${dataSelecionada.getFullYear()}`;
@@ -276,127 +263,113 @@ export default function TransacoesScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Lista */}
-            {carregando ? (
-                <View style={styles.centroLoading}>
-                    <ActivityIndicator size="large" color="#4f46e5" />
-                </View>
-            ) : (
-                <FlatList
-                    data={transacoesFiltradas}
-                    keyExtractor={(item, idx) => String(item.id ?? item.id_transacao ?? idx)}
-                    contentContainerStyle={styles.listaConteudo}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={atualizando}
-                            onRefresh={() => {
-                                setAtualizando(true);
-                                carregarTransacoes();
-                            }}
-                            colors={['#4f46e5']}
-                        />
-                    }
-                    ListEmptyComponent={
-                        <View style={styles.cardVazio}>
-                            <Text style={styles.textoVazio}>
-                                {busca ? 'Nenhum resultado para a busca.' : `Nenhuma transação em ${MESES[dataSelecionada.getMonth()]}.`}
-                            </Text>
-                        </View>
-                    }
-                    renderItem={({ item }) => {
-                        const ehReceita = extrairTipoNormalizado(item) === 'receita';
-                        const nomeCat = extrairNomeCategoria(item);
-                        const dataFmt = formatarDataHora(item);
-                        const nomeCartao = extrairNomeCartao(item);
+            {/* Lista com Transações Mocadas */}
+            <FlatList
+                data={transacoesFiltradas}
+                keyExtractor={(item, idx) => String(item.id ?? item.id_transacao ?? idx)}
+                contentContainerStyle={styles.listaConteudo}
+                ListEmptyComponent={
+                    <View style={styles.cardVazio}>
+                        <Text style={styles.textoVazio}>
+                            {busca ? 'Nenhum resultado para a busca.' : `Nenhuma transação em ${MESES[dataSelecionada.getMonth()]}.`}
+                        </Text>
+                    </View>
+                }
+                renderItem={({ item }) => {
+                    const ehReceita = extrairTipoNormalizado(item) === 'receita';
+                    const nomeCat = extrairNomeCategoria(item);
+                    const dataFmt = formatarDataHora(item);
+                    const nomeCartao = extrairNomeCartao(item);
 
-                        return (
-                            <View style={styles.cardItem}>
-                                <View style={styles.itemEsquerda}>
-                                    <View
-                                        style={[
-                                            styles.iconeTipo,
-                                            ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone,
-                                        ]}
-                                    >
-                                        {ehReceita ? (
-                                            <TrendingUp size={18} color="#10b981" />
-                                        ) : nomeCartao ? (
-                                            <CreditCard size={18} color="#ef4444" />
-                                        ) : (
-                                            <TrendingDown size={18} color="#ef4444" />
-                                        )}
-                                    </View>
-
-                                    <View style={styles.infoTransacao}>
-                                        <Text style={styles.descricaoTransacao} numberOfLines={1}>
-                                            {item.descricao}
-                                        </Text>
-
-                                        <View style={styles.metaTransacao}>
-                                            <Text style={styles.categoriaTransacao}>{nomeCat}</Text>
-                                            {dataFmt ? <Text style={styles.dataTransacao}> • {dataFmt}</Text> : null}
-
-                                            {/* BADGE DE CARTÃO - tag que identifica trasação com origem do cartão*/}
-                                            {nomeCartao && (
-                                                <View style={styles.badgeCartao}>
-                                                    <CreditCard size={10} color="#4f46e5" />
-                                                    <Text style={styles.textoBadgeCartao}>{nomeCartao}</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                    </View>
+                    return (
+                        <View style={styles.cardItem}>
+                            <View style={styles.itemEsquerda}>
+                                <View
+                                    style={[
+                                        styles.iconeTipo,
+                                        ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone,
+                                    ]}
+                                >
+                                    {ehReceita ? (
+                                        <TrendingUp size={18} color="#10b981" />
+                                    ) : nomeCartao ? (
+                                        <CreditCard size={18} color="#ef4444" />
+                                    ) : (
+                                        <TrendingDown size={18} color="#ef4444" />
+                                    )}
                                 </View>
 
-                                <View style={styles.itemDireita}>
-                                    <Text
-                                        style={[
-                                            styles.valorTransacao,
-                                            ehReceita ? styles.textoVerde : styles.textoVermelho,
-                                        ]}
-                                    >
-                                        {ehReceita ? '+ ' : '- '}
-                                        {formatarMoeda(item.valor)}
+                                <View style={styles.infoTransacao}>
+                                    <Text style={styles.descricaoTransacao} numberOfLines={1}>
+                                        {item.descricao}
                                     </Text>
 
-                                    {/* Ações */}
-                                    <View style={styles.acoesContainer}>
-                                        <TouchableOpacity
-                                            style={styles.botaoAcao}
-                                            onPress={() => abrirEdicao(item)}
-                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                        >
-                                            {/* Icone de lapis*/}
-                                            <Edit2 size={15} color="#94a3b8" /> 
-                                        </TouchableOpacity>
+                                    <View style={styles.metaTransacao}>
+                                        <Text style={styles.categoriaTransacao}>{nomeCat}</Text>
+                                        {dataFmt ? <Text style={styles.dataTransacao}> • {dataFmt}</Text> : null}
 
-                                        <TouchableOpacity
-                                            style={styles.botaoAcao}
-                                            onPress={() => handleExcluir(item)}
-                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                        >
-                                            {/* Icone de lixeira*/}
-                                            <Trash2 size={15} color="#ef4444" />
-                                        </TouchableOpacity>
+                                        {/* BADGE DE CARTÃO */}
+                                        {nomeCartao && (
+                                            <View style={styles.badgeCartao}>
+                                                <CreditCard size={10} color="#4f46e5" />
+                                                <Text style={styles.textoBadgeCartao}>{nomeCartao}</Text>
+                                            </View>
+                                        )}
                                     </View>
                                 </View>
                             </View>
-                        );
-                    }}
-                />
-            )}
 
-            {/* Botão flutueante - icone Mais + Plus*/}
+                            <View style={styles.itemDireita}>
+                                <Text
+                                    style={[
+                                        styles.valorTransacao,
+                                        ehReceita ? styles.textoVerde : styles.textoVermelho,
+                                    ]}
+                                >
+                                    {ehReceita ? '+ ' : '- '}
+                                    {formatarMoeda(item.valor)}
+                                </Text>
+
+                                {/* Ações Visuais */}
+                                <View style={styles.acoesContainer}>
+                                    <TouchableOpacity
+                                        style={styles.botaoAcao}
+                                        onPress={() => abrirEdicao(item)}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <Edit2 size={15} color="#94a3b8" />
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.botaoAcao}
+                                        onPress={() => handleExcluir(item)}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <Trash2 size={15} color="#ef4444" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    );
+                }}
+            />
+
+            {/* Botão Flutuante (+) */}
             <TouchableOpacity style={styles.fab} onPress={abrirCriacao} activeOpacity={0.85}>
                 <Plus color="#ffffff" size={28} />
             </TouchableOpacity>
 
+            {/* Modal em Modo Apresentação */}
             <ModalTransacao
                 visivel={modalAberto}
                 aoFechar={() => {
                     setModalAberto(false);
                     setTransacaoSelecionada(null);
                 }}
-                aoSalvarSucesso={carregarTransacoes}
+                aoSalvarSucesso={() => {
+                    setModalAberto(false);
+                    setTransacaoSelecionada(null);
+                }}
                 transacaoParaEditar={transacaoSelecionada}
             />
         </SafeAreaView>
@@ -510,11 +483,6 @@ const styles = StyleSheet.create({
     textoAbaAtiva: {
         color: '#ffffff',
     },
-    centroLoading: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     listaConteudo: {
         paddingHorizontal: 20,
         paddingBottom: 90,
@@ -624,7 +592,7 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontSize: 14,
     },
-    fab: { // botão adicionar / abrir modal 
+    fab: {
         position: 'absolute',
         bottom: 24,
         right: 20,
