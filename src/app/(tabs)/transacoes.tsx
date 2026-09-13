@@ -5,186 +5,24 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    FlatList,
-    Alert,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     Search,
     TrendingUp,
     TrendingDown,
-    Trash2,
-    Edit2,
     Plus,
     ArrowUpDown,
-    CreditCard,
     ChevronLeft,
     ChevronRight,
     Calendar,
+    ReceiptText,
 } from 'lucide-react-native';
-import { ModalTransacao, TransacaoItem } from '@/components/ModalTransacao';
-
-const MESES = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
-
-// Dados estáticos demonstratrivos
-const TRANSACOES_DEMO: TransacaoItem[] = [
-    {
-        id: 1,
-        id_transacao: 1,
-        descricao: 'Salário Mensal',
-        valor: 5200.00,
-        tipo: 'receita',
-        data: '2026-09-05',
-        categoria: { nome: 'Salário', tipo: 'receita' },
-        cartao: null,
-    } as any,
-    {
-        id: 2,
-        id_transacao: 2,
-        descricao: 'Supermercado Tauste',
-        valor: 642.50,
-        tipo: 'despesa',
-        data: '2026-09-08',
-        categoria: { nome: 'Alimentação', tipo: 'despesa' },
-        cartao: { nome: 'Nubank' },
-    } as any,
-    {
-        id: 3,
-        id_transacao: 3,
-        descricao: 'Assinatura Alura',
-        valor: 85.00,
-        tipo: 'despesa',
-        data: '2026-09-10',
-        categoria: { nome: 'Educação', tipo: 'despesa' },
-        cartao: { nome: 'Itaú' },
-    } as any,
-    {
-        id: 4,
-        id_transacao: 4,
-        descricao: 'Rendimento de Investimentos',
-        valor: 340.20,
-        tipo: 'receita',
-        data: '2026-09-12',
-        categoria: { nome: 'Investimentos', tipo: 'receita' },
-        cartao: null,
-    } as any,
-];
+import { ModalTransacao } from '@/components/ModalTransacao';
 
 export default function TransacoesScreen() {
-    const [dataSelecionada, setDataSelecionada] = useState(new Date());
-    const [transacoes, setTransacoes] = useState<TransacaoItem[]>(TRANSACOES_DEMO);
-    const [busca, setBusca] = useState('');
-    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas');
-
     const [modalAberto, setModalAberto] = useState(false);
-    const [transacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
-
-    function formatarMoeda(valor: number | string) {
-        const numero = Math.abs(Number(valor)) || 0;
-        return numero.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-        });
-    }
-
-    function extrairTipoNormalizado(item: TransacaoItem): 'receita' | 'despesa' {
-        const raw = String(item.tipo || (item as any).tipo_transacao || (item as any).categoria?.tipo || '').toLowerCase();
-        return raw.includes('rec') ? 'receita' : 'despesa';
-    }
-
-    function formatarDataHora(item: any): string {
-        const raw = item.data || item.data_transacao || item.created_at || item.criado_em;
-        if (!raw) return '';
-
-        try {
-            const partes = String(raw).split('T')[0].split('-');
-            if (partes.length === 3) {
-                return `${partes[2]}/${partes[1]}`;
-            }
-
-            const dataObj = new Date(raw);
-            if (isNaN(dataObj.getTime())) return '';
-            return dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        } catch {
-            return '';
-        }
-    }
-
-    function extrairNomeCategoria(item: any): string {
-        if (typeof item.categoria === 'string' && item.categoria.trim()) return item.categoria;
-        if (typeof item.categoria === 'object' && item.categoria?.nome) return item.categoria.nome;
-        return extrairTipoNormalizado(item) === 'receita' ? 'Receita' : 'Despesa';
-    }
-
-    function extrairNomeCartao(item: any): string | null {
-        if (item.cartao && typeof item.cartao === 'object' && item.cartao.nome) {
-            return item.cartao.nome;
-        }
-        if (item.id_cartao) {
-            return 'Cartão';
-        }
-        return null;
-    }
-
-    function mudarMes(direcao: 'anterior' | 'proximo') {
-        const novaData = new Date(dataSelecionada);
-        if (direcao === 'anterior') {
-            novaData.setMonth(novaData.getMonth() - 1);
-        } else {
-            novaData.setMonth(novaData.getMonth() + 1);
-        }
-        setDataSelecionada(novaData);
-    }
-
-    function abrirEdicao(item: TransacaoItem) {
-        setTransacaoSelecionada(item);
-        setModalAberto(true);
-    }
-
-    function abrirCriacao() {
-        setTransacaoSelecionada(null);
-        setModalAberto(true);
-    }
-
-    function handleExcluir(item: TransacaoItem) {
-        Alert.alert(
-            'Confirmar Exclusão',
-            `Deseja realmente apagar a transação "${item.descricao}"?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Excluir',
-                    style: 'destructive',
-                    onPress: () => {
-                        const idTransacao = item.id ?? item.id_transacao;
-                        setTransacoes((prev) =>
-                            prev.filter((t) => (t.id ?? t.id_transacao) !== idTransacao)
-                        );
-                        Alert.alert('Sucesso', 'Transação excluída em modo demonstração!');
-                    },
-                },
-            ]
-        );
-    }
-
-    const transacoesFiltradas = transacoes.filter((item) => {
-        const tipoItem = extrairTipoNormalizado(item);
-        const bateTipo = filtroTipo === 'todas' || tipoItem === filtroTipo;
-
-        if (!busca.trim()) return bateTipo;
-
-        const termo = busca.toLowerCase().trim();
-        const bateBusca =
-            item.descricao.toLowerCase().includes(termo) ||
-            extrairNomeCategoria(item).toLowerCase().includes(termo);
-
-        return bateTipo && bateBusca;
-    });
-
-    const mesExtenso = `${MESES[dataSelecionada.getMonth()]} de ${dataSelecionada.getFullYear()}`;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -197,7 +35,6 @@ export default function TransacoesScreen() {
             <View style={styles.containerSeletorMes}>
                 <TouchableOpacity
                     style={styles.botaoSetaMes}
-                    onPress={() => mudarMes('anterior')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <ChevronLeft size={20} color="#475569" />
@@ -205,12 +42,11 @@ export default function TransacoesScreen() {
 
                 <View style={styles.boxMesTexto}>
                     <Calendar size={15} color="#4f46e5" />
-                    <Text style={styles.textoMesExtenso}>{mesExtenso}</Text>
+                    <Text style={styles.textoMesExtenso}>Setembro de 2026</Text>
                 </View>
 
                 <TouchableOpacity
                     style={styles.botaoSetaMes}
-                    onPress={() => mudarMes('proximo')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <ChevronRight size={20} color="#475569" />
@@ -224,153 +60,55 @@ export default function TransacoesScreen() {
                     style={styles.inputBusca}
                     placeholder="Buscar global por nome, categoria..."
                     placeholderTextColor="#94a3b8"
-                    value={busca}
-                    onChangeText={setBusca}
-                    clearButtonMode="while-editing"
+                    editable={false}
                 />
             </View>
 
             {/* Filtro por tags */}
             <View style={styles.abasContainer}>
-                <TouchableOpacity
-                    style={[styles.aba, filtroTipo === 'todas' && styles.abaAtiva]}
-                    onPress={() => setFiltroTipo('todas')}
-                >
-                    <ArrowUpDown size={14} color={filtroTipo === 'todas' ? '#ffffff' : '#64748b'} />
-                    <Text style={[styles.textoAba, filtroTipo === 'todas' && styles.textoAbaAtiva]}>
-                        Todas
-                    </Text>
+                <TouchableOpacity style={[styles.aba, styles.abaAtiva]}>
+                    <ArrowUpDown size={14} color="#ffffff" />
+                    <Text style={[styles.textoAba, styles.textoAbaAtiva]}>Todas</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={[styles.aba, filtroTipo === 'receita' && styles.abaReceitaAtiva]}
-                    onPress={() => setFiltroTipo('receita')}
-                >
-                    <TrendingUp size={14} color={filtroTipo === 'receita' ? '#ffffff' : '#10b981'} />
-                    <Text style={[styles.textoAba, filtroTipo === 'receita' && styles.textoAbaAtiva]}>
-                        Receitas
-                    </Text>
+                <TouchableOpacity style={styles.aba}>
+                    <TrendingUp size={14} color="#10b981" />
+                    <Text style={styles.textoAba}>Receitas</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={[styles.aba, filtroTipo === 'despesa' && styles.abaDespesaAtiva]}
-                    onPress={() => setFiltroTipo('despesa')}
-                >
-                    <TrendingDown size={14} color={filtroTipo === 'despesa' ? '#ffffff' : '#ef4444'} />
-                    <Text style={[styles.textoAba, filtroTipo === 'despesa' && styles.textoAbaAtiva]}>
-                        Despesas
-                    </Text>
+                <TouchableOpacity style={styles.aba}>
+                    <TrendingDown size={14} color="#ef4444" />
+                    <Text style={styles.textoAba}>Despesas</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Lista com Transações Mocadas */}
-            <FlatList
-                data={transacoesFiltradas}
-                keyExtractor={(item, idx) => String(item.id ?? item.id_transacao ?? idx)}
-                contentContainerStyle={styles.listaConteudo}
-                ListEmptyComponent={
-                    <View style={styles.cardVazio}>
-                        <Text style={styles.textoVazio}>
-                            {busca ? 'Nenhum resultado para a busca.' : `Nenhuma transação em ${MESES[dataSelecionada.getMonth()]}.`}
-                        </Text>
+            {/* Conteúdo Central Demonstrativo */}
+            <ScrollView contentContainerStyle={styles.conteudoCentral}>
+                <View style={styles.cardDemonstracao}>
+                    <View style={styles.iconePlaceholder}>
+                        <ReceiptText size={32} color="#4f46e5" />
                     </View>
-                }
-                renderItem={({ item }) => {
-                    const ehReceita = extrairTipoNormalizado(item) === 'receita';
-                    const nomeCat = extrairNomeCategoria(item);
-                    const dataFmt = formatarDataHora(item);
-                    const nomeCartao = extrairNomeCartao(item);
+                    <Text style={styles.tituloCardDemo}>Módulo de Transações</Text>
+                    <Text style={styles.textoCardDemo}>
+                        Painel de visualização e filtros configurado. Toque no botão flutuante abaixo para conferir o modal de lançamentos.
+                    </Text>
+                </View>
+            </ScrollView>
 
-                    return (
-                        <View style={styles.cardItem}>
-                            <View style={styles.itemEsquerda}>
-                                <View
-                                    style={[
-                                        styles.iconeTipo,
-                                        ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone,
-                                    ]}
-                                >
-                                    {ehReceita ? (
-                                        <TrendingUp size={18} color="#10b981" />
-                                    ) : nomeCartao ? (
-                                        <CreditCard size={18} color="#ef4444" />
-                                    ) : (
-                                        <TrendingDown size={18} color="#ef4444" />
-                                    )}
-                                </View>
-
-                                <View style={styles.infoTransacao}>
-                                    <Text style={styles.descricaoTransacao} numberOfLines={1}>
-                                        {item.descricao}
-                                    </Text>
-
-                                    <View style={styles.metaTransacao}>
-                                        <Text style={styles.categoriaTransacao}>{nomeCat}</Text>
-                                        {dataFmt ? <Text style={styles.dataTransacao}> • {dataFmt}</Text> : null}
-
-                                        {/* BADGE DE CARTÃO */}
-                                        {nomeCartao && (
-                                            <View style={styles.badgeCartao}>
-                                                <CreditCard size={10} color="#4f46e5" />
-                                                <Text style={styles.textoBadgeCartao}>{nomeCartao}</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                </View>
-                            </View>
-
-                            <View style={styles.itemDireita}>
-                                <Text
-                                    style={[
-                                        styles.valorTransacao,
-                                        ehReceita ? styles.textoVerde : styles.textoVermelho,
-                                    ]}
-                                >
-                                    {ehReceita ? '+ ' : '- '}
-                                    {formatarMoeda(item.valor)}
-                                </Text>
-
-                                {/* Ações Visuais */}
-                                <View style={styles.acoesContainer}>
-                                    <TouchableOpacity
-                                        style={styles.botaoAcao}
-                                        onPress={() => abrirEdicao(item)}
-                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    >
-                                        <Edit2 size={15} color="#94a3b8" />
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={styles.botaoAcao}
-                                        onPress={() => handleExcluir(item)}
-                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    >
-                                        <Trash2 size={15} color="#ef4444" />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </View>
-                    );
-                }}
-            />
-
-            {/* Botão Flutuante (+) */}
-            <TouchableOpacity style={styles.fab} onPress={abrirCriacao} activeOpacity={0.85}>
+            {/* Botão Flutuante (+) - Abre o Modal */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => setModalAberto(true)}
+                activeOpacity={0.85}
+            >
                 <Plus color="#ffffff" size={28} />
             </TouchableOpacity>
 
-            {/* Modal em Modo Apresentação */}
+            {/* Modal de Transação (Modo Visual) */}
             <ModalTransacao
                 visivel={modalAberto}
-                aoFechar={() => {
-                    setModalAberto(false);
-                    setTransacaoSelecionada(null);
-                }}
-                aoSalvarSucesso={() => {
-                    setModalAberto(false);
-                    setTransacaoSelecionada(null);
-                }}
-                transacaoParaEditar={transacaoSelecionada}
+                aoFechar={() => setModalAberto(false)}
+                aoSalvarSucesso={() => setModalAberto(false)}
             />
         </SafeAreaView>
     );
@@ -467,14 +205,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#4f46e5',
         borderColor: '#4f46e5',
     },
-    abaReceitaAtiva: {
-        backgroundColor: '#10b981',
-        borderColor: '#10b981',
-    },
-    abaDespesaAtiva: {
-        backgroundColor: '#ef4444',
-        borderColor: '#ef4444',
-    },
     textoAba: {
         fontSize: 13,
         fontWeight: '600',
@@ -483,114 +213,38 @@ const styles = StyleSheet.create({
     textoAbaAtiva: {
         color: '#ffffff',
     },
-    listaConteudo: {
+    conteudoCentral: {
         paddingHorizontal: 20,
-        paddingBottom: 90,
+        paddingTop: 20,
     },
-    cardItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#ffffff',
-        padding: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        marginBottom: 10,
-    },
-    itemEsquerda: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        marginRight: 8,
-    },
-    iconeTipo: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    bgReceitaIcone: {
-        backgroundColor: '#dcfce7',
-    },
-    bgDespesaIcone: {
-        backgroundColor: '#fee2e2',
-    },
-    infoTransacao: {
-        flex: 1,
-    },
-    descricaoTransacao: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#0f172a',
-    },
-    metaTransacao: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 4,
-        marginTop: 2,
-    },
-    categoriaTransacao: {
-        fontSize: 12,
-        color: '#64748b',
-    },
-    dataTransacao: {
-        fontSize: 11,
-        color: '#94a3b8',
-    },
-    badgeCartao: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#ede9fe',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
-        marginLeft: 4,
-    },
-    textoBadgeCartao: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: '#4f46e5',
-    },
-    itemDireita: {
-        alignItems: 'flex-end',
-        gap: 6,
-        marginLeft: 8,
-    },
-    valorTransacao: {
-        fontSize: 15,
-        fontWeight: 'bold',
-    },
-    textoVerde: {
-        color: '#10b981',
-    },
-    textoVermelho: {
-        color: '#ef4444',
-    },
-    acoesContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    botaoAcao: {
-        padding: 2,
-    },
-    cardVazio: {
+    cardDemonstracao: {
         backgroundColor: '#ffffff',
         padding: 28,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: '#e2e8f0',
         alignItems: 'center',
-        marginTop: 20,
     },
-    textoVazio: {
-        color: '#94a3b8',
+    iconePlaceholder: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#ede9fe',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    tituloCardDemo: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#0f172a',
+        marginBottom: 8,
+    },
+    textoCardDemo: {
+        color: '#64748b',
         fontSize: 14,
+        textAlign: 'center',
+        lineHeight: 20,
     },
     fab: {
         position: 'absolute',
