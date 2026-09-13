@@ -56,7 +56,6 @@ export default function Cadastro() {
         try {
             setCarregando(true);
 
-            // Ajuste aqui se a sua rota for /usuarios/registrar ou /auth/registrar
             const res = await api.post('/auth/register', {
                 nome: nomeLimpo,
                 email: emailLimpo,
