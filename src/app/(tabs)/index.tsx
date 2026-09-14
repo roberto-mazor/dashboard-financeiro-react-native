@@ -168,26 +168,30 @@ export default function Dashboard() {
                     data_fim: ultimoDia,
                 },
             });
+            //Extrai a lista de transações tratando variações na resposta da API
             const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
 
             let receitasCalculadas = 0;
             let despesasCalculadas = 0;
 
+            //Ordena as transações da mais recente para a mais antiga pela data
             if (Array.isArray(listaBruta)) {
                 const listaOrdenada = [...listaBruta].sort((a: any, b: any) => {
                     const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
                     const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
                     if (dataB !== dataA) return dataB - dataA;
 
+                    // em caso de empate ordena pelo ID mais alto
                     const idA = Number(a.id ?? a.id_transacao ?? 0);
                     const idB = Number(b.id ?? b.id_transacao ?? 0);
                     return idB - idA;
                 });
 
-                setTransacoes(listaOrdenada.slice(0, 10));
+                setTransacoes(listaOrdenada.slice(0, 10)); // mostra apenas 10
 
+                //Percorre todas as transações da lista para calcular
                 listaOrdenada.forEach((item: any) => {
-                    const val = Math.abs(Number(item.valor)) || 0;
+                    const val = Math.abs(Number(item.valor)) || 0; 
                     const t = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
 
                     if (t === 'receita') {
@@ -206,18 +210,20 @@ export default function Dashboard() {
                         data_fim: ultimoDia,
                     },
                 });
-                const d = resResumo.data || {};
+                const d = resResumo.data || {}; // caso o objeto retorne vazio entra no d para evitar erro
 
                 const recApi = Number(d.entradas ?? d.totalReceitas ?? d.receitas ?? 0);
                 const despApi = Number(d.saidas ?? d.totalDespesas ?? d.despesas ?? 0);
                 const saldoApi = Number(d.saldo ?? d.saldoTotal ?? d.saldo_atual ?? 0);
 
+                //Se a API retornar um valor maior que zero (recApi > 0), utiliza o dado da API
                 setResumo({
                     saldoTotal: saldoApi,
                     totalReceitas: recApi > 0 ? recApi : receitasCalculadas,
                     totalDespesas: despApi > 0 ? despApi : despesasCalculadas,
                 });
             } catch {
+                // se der erro no processo acima o calculo é feito localmente
                 setResumo({
                     saldoTotal: receitasCalculadas - despesasCalculadas,
                     totalReceitas: receitasCalculadas,
