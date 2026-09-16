@@ -454,11 +454,12 @@ export function ModalTransacao({
                                 onChangeText={setDescricao}
                             />
 
-                            {/* Forma de Pagamento (somente em Despesa) */}
-                            {tipo === 'despesa' && (
+                            {/* Forma de Pagamento (Apenas quando for Despesa) */}
+                            {tipo === 'despesa' && cartoes.length > 0 && (
                                 <View style={styles.secaoPagamento}>
                                     <Text style={styles.label}>Forma de Pagamento</Text>
                                     <View style={styles.gradePagamento}>
+                                        {/* Opção 1: Dinheiro / Conta */}
                                         <TouchableOpacity
                                             style={[
                                                 styles.chipPagamento,
@@ -480,7 +481,8 @@ export function ModalTransacao({
                                             </Text>
                                         </TouchableOpacity>
 
-                                        {CARTOES_DEMO.map((c) => {
+                                        {/* Opção Cartões de Crédito */}
+                                        {cartoes.map((c) => {
                                             const ativo = cartaoSelecionado === c.id_cartao;
                                             return (
                                                 <TouchableOpacity
