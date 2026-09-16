@@ -444,8 +444,8 @@ export function ModalTransacao({
                                 />
                             </View>
 
-                            {/* Campo Descrição */}
-                            <Text style={styles.label}>Descrição</Text>
+                            {/* Descrição */}
+                            <Text style={styles.label}>Descrição *</Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Ex: Aluguel, Supermercado, Salário"
