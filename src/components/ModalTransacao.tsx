@@ -38,9 +38,10 @@ export interface TransacaoItem {
 }
 
 interface Categoria {
-    id: number;
+    id?: number;
     nome: string;
-    tipo: string;
+    tipo?: string;
+    id_categoria?: number;
 }
 
 interface CartaoOption {
@@ -78,7 +79,7 @@ export function ModalTransacao({
     const [tipo, setTipo] = useState<'receita' | 'despesa'>('receita');
     const [descricao, setDescricao] = useState('');
     const [valorFormatado, setValorFormatado] = useState('0,00');
-    const [categoriaSelecionada, setCategoriaSelecionada] = useState<number | null>(null);
+    const [categoriaSelecionada, setCategoriaSelecionada] = useState<Categoria | null>(null);
     const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
     const [carregandoCategorias, setCarregandoCategorias] = useState(false);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -91,7 +92,12 @@ export function ModalTransacao({
     // Estados de Nova Categoria
     const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
-    const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
+    
+    // Estados para edição/renomeação de categoria
+    const [modalEditarCatVisivel, setModalEditarCatVisivel] = useState(false);
+    const [categoriaEmEdicao, setCategoriaEmEdicao] = useState<any | null>(null);
+    const [novoNomeCategoria, setNovoNomeCategoria] = useState('');
+    const [salvandoCategoria, setSalvandoCategoria] = useState(false);
 
     useEffect(() => {
         if (visivel) {
@@ -280,6 +286,49 @@ export function ModalTransacao({
             Alert.alert('Erro', msg);
         } finally {
             setSalvando(false);
+        }
+    }
+
+    async function handleSalvarEdicaoCategoria() {
+        if (!categoriaEmEdicao) return;
+        if (!novoNomeCategoria.trim()) {
+            Alert.alert('Atenção', 'O nome da categoria não pode ficar vazio.');
+            return;
+        }
+
+        const idCat = categoriaEmEdicao.id ?? categoriaEmEdicao.id_categoria;
+
+        try {
+            setSalvandoCategoria(true);
+            await api.put(`/categorias/${idCat}`, {
+                nome: novoNomeCategoria.trim(),
+            });
+
+            // Atualiza localmente na lista de categorias do modal
+            setCategorias((prev: any[]) =>
+                prev.map((c) =>
+                    (c.id ?? c.id_categoria) === idCat ? { ...c, nome: novoNomeCategoria.trim() } : c
+                )
+            );
+
+            // Se a categoria alterada for a selecionada atualmente, atualiza a seleção
+            if ((categoriaSelecionada?.id ?? categoriaSelecionada?.id_categoria) === idCat) {
+                setCategoriaSelecionada({
+                    ...categoriaSelecionada,
+                    id: Number(idCat),
+                    nome: novoNomeCategoria.trim(),
+                });
+            }
+
+            Alert.alert('Sucesso', 'Categoria atualizada com sucesso!');
+            setModalEditarCatVisivel(false);
+            setCategoriaEmEdicao(null);
+        } catch (error: any) {
+            console.error('Erro ao editar categoria:', error.response?.data || error.message);
+            const msg = error.response?.data?.error || 'Não foi possível atualizar a categoria.';
+            Alert.alert('Erro', msg);
+        } finally {
+            setSalvandoCategoria(false);
         }
     }
 
