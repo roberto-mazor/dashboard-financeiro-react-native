@@ -79,6 +79,8 @@ export function ModalTransacao({
     const [valorFormatado, setValorFormatado] = useState('0,00');
     const [categoriaSelecionada, setCategoriaSelecionada] = useState<number | null>(null);
     const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
+    const [carregandoCategorias, setCarregandoCategorias] = useState(false);
+    const [categorias, setCategorias] = useState<Categoria[]>([]);
 
     // Estados de Cartão de Crédito
     const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
@@ -110,6 +112,27 @@ export function ModalTransacao({
     const categoriasFiltradas = CATEGORIAS_DEMO.filter((c) =>
         c.tipo.includes(tipo.substring(0, 3))
     );
+
+    async function buscarCategorias() {
+        try {
+            setCarregandoCategorias(true);
+            const res = await api.get('/categorias');
+            const listaBruta = res.data?.categorias || res.data || [];
+
+            if (Array.isArray(listaBruta)) {
+                const norm: Categoria[] = listaBruta.map((cat: any) => ({
+                    id: Number(cat.id ?? cat.id_categoria),
+                    nome: cat.nome || cat.descricao || 'Sem nome',
+                    tipo: String(cat.tipo || '').toLowerCase(),
+                }));
+                setCategorias(norm);
+            }
+        } catch (error: any) {
+            console.error('Erro ao buscar categorias:', error.response?.data || error.message);
+        } finally {
+            setCarregandoCategorias(false);
+        }
+    }
 
     async function buscarCartoes() {
         try {
