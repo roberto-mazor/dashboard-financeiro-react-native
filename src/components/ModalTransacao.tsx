@@ -56,20 +56,6 @@ interface ModalTransacaoProps {
     transacaoParaEditar?: TransacaoItem | null;
 }
 
-const CATEGORIAS_DEMO: Categoria[] = [
-    { id: 1, nome: 'Alimentação', tipo: 'despesa' },
-    { id: 2, nome: 'Salário', tipo: 'receita' },
-    { id: 3, nome: 'Lazer', tipo: 'despesa' },
-    { id: 4, nome: 'Educação', tipo: 'despesa' },
-    { id: 5, nome: 'Investimentos', tipo: 'receita' },
-    { id: 6, nome: 'Moradia', tipo: 'despesa' },
-];
-
-const CARTOES_DEMO: CartaoOption[] = [
-    { id_cartao: 1, nome: 'Nubank' },
-    { id_cartao: 2, nome: 'Itaú' },
-];
-
 export function ModalTransacao({ 
     visivel,
     aoFechar,
