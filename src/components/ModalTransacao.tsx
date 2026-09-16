@@ -81,10 +81,35 @@ export function ModalTransacao({
     const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
     const [carregandoCategorias, setCarregandoCategorias] = useState(false);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
+    const [valorNumerico, setValorNumerico] = useState(0);
 
     // Estados de Cartão de Crédito
     const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
 
+
+
+    function preencherParaEdicao(item: TransacaoItem) {
+        const tipoNorm = String(item.tipo || item.tipo_transacao || '').toLowerCase().includes('rec')
+            ? 'receita'
+            : 'despesa';
+        setTipo(tipoNorm);
+        setDescricao(item.descricao || '');
+
+        const val = Math.abs(Number(item.valor)) || 0;
+        setValorNumerico(val);
+        setValorFormatado(
+            val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        );
+
+        const catId = Number(item.id_categoria ?? item.categoria_id ?? item.categoria?.id);
+        if (catId) {
+            const encontrada = categorias.find((c) => c.id === catId);
+            if (encontrada) setCategoriaSelecionada(encontrada);
+        }
+
+        const cardId = item.id_cartao ? Number(item.id_cartao) : null;
+        setCartaoSelecionado(cardId);
+    }
 
     function handleValorChange(texto: string) {
         const apenasDigitos = texto.replace(/\D/g, '');
