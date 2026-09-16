@@ -232,6 +232,17 @@ export function ModalTransacao({
         }
     }
 
+    function resetar() {
+        setDescricao('');
+        setValorFormatado('0,00');
+        setValorNumerico(0);
+        setCategoriaSelecionada(null);
+        setCartaoSelecionado(null);
+        setCriandoCategoria(false);
+        setNomeNovaCategoria('');
+        setTipo('receita');
+    }
+
     async function handleSalvar() {
         if (!descricao.trim()) {
             Alert.alert('Atenção', 'Preencha a descrição.');
