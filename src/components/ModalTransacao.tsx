@@ -158,11 +158,6 @@ export function ModalTransacao({
         setTipo('receita');
         aoFechar();
     }
-    
-
-    const categoriasFiltradas = CATEGORIAS_DEMO.filter((c) =>
-        c.tipo.includes(tipo.substring(0, 3))
-    );
 
     async function buscarCategorias() {
         try {
