@@ -397,13 +397,16 @@ export function ModalTransacao({
 
                             {/* Topo */}
                             <View style={styles.topoModal}>
-                                <Text style={styles.tituloModal}>Nova Transação</Text>
-                                <TouchableOpacity onPress={handleFechar}>
+                                <Text style={styles.tituloModal}>
+                                    {transacaoParaEditar ? 'Editar Transação' : 'Nova Transação'}
+                                </Text>
+                                <TouchableOpacity onPress={aoFechar} disabled={salvando}>
                                     <X size={24} color="#64748b" />
                                 </TouchableOpacity>
                             </View>
 
                             {/* Seletor Tipo (Receita / Despesa) */}
+                            {/* Seletor Tipo */}
                             <View style={styles.containerTipo}>
                                 <TouchableOpacity
                                     style={[styles.botaoTipo, tipo === 'receita' && styles.botaoTipoReceitaAtivo]}
