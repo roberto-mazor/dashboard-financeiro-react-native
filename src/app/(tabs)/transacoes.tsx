@@ -89,6 +89,18 @@ export default function TransacoesScreen() {
         return null;
     }
 
+    function mudarMes (direcao: 'anterior' | 'proximo') {
+        const novaData = new Date(dataSelecionada);
+        if (direcao === 'anterior') {
+            novaData.setMonth(novaData.getMonth() - 1);
+        } else {
+            novaData.setMonth(novaData.getMonth() + 1);
+        }
+        setDataSelecionada(novaData);
+    }
+
+
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
