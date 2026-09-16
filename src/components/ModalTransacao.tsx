@@ -290,6 +290,12 @@ export function ModalTransacao({
         }
     }
 
+    function iniciarEdicaoCategoria(cat: any) {
+        setCategoriaEmEdicao(cat);
+        setNovoNomeCategoria(cat.nome);
+        setModalEditarCatVisivel(true);
+    }
+
     async function handleSalvarEdicaoCategoria() {
         if (!categoriaEmEdicao) return;
         if (!novoNomeCategoria.trim()) {
