@@ -10,7 +10,9 @@ import {
     ActivityIndicator,
     RefreshControl
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { api } from '@/services/api';
 import {
     Search,
     TrendingUp,
@@ -36,6 +38,7 @@ export default function TransacoesScreen() {
     const [dataSelecionada, setDataSelecionada] = useState(new Date());
     const [transacoes, setTransacoes] = useState<TransacaoItem[]>([]);
     const [carregando, setCarregando] = useState(true); 
+    const [atualizando, setAtualizando ] = useState(false);
     const [busca, setBusca] = useState('');
     const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receitas' | 'despesas'>('todas'); // Pode ser no estado: 'todas' | 'receitas' | 'despesas'
     
@@ -108,6 +111,51 @@ export default function TransacoesScreen() {
         return { primeiroDia, ultimoDia};
     }
 
+    const carregarTransacoes = useCallback(async () => {
+        try {
+            const { primeiroDia, ultimoDia } = obterIntervaloMes(dataSelecionada);
+
+            const params: any = {};
+            // Se não houver busca em digitação, restringe ao mês selecionado
+            if (!busca.trim()) {
+                params.data_inicio = primeiroDia;
+                params.data_fim = ultimoDia;
+            } else {
+                params.busca = busca.trim();
+            }
+
+            const res = await api.get('/transacoes', { params });
+            const lista: TransacaoItem[] = res.data?.transacoes || res.data || [];
+
+            if (Array.isArray(lista)) {
+                const ordenadas = [...lista].sort((a: any, b: any) => {
+                    // 1. Converte e extrai o timestamp de cada item
+                    const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
+                    const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
+
+                    // 2. Se as datas forem diferentes, ordena pela data mais recente primeiro
+                    if (dataB !== dataA) return dataB - dataA;
+
+                    // 3. Critério de desempate: ordena pelo ID mais alto
+                    const idA = Number(a.id ?? a.id_transacao ?? 0);
+                    const idB = Number(b.id ?? b.id_transacao ?? 0);
+                    return idB - idA;
+                });
+                setTransacoes(ordenadas);
+            }
+        } catch (error: any) {
+            console.error('Erro ao listar transações:', error.response?.data || error.message);
+        } finally {
+            setCarregando(false);
+            setAtualizando(false);
+        }
+    }, [dataSelecionada, busca]);
+
+    useFocusEffect(
+        useCallback(() => {
+            carregarTransacoes();
+        }, [carregarTransacoes])
+    );
 
     return (
         <SafeAreaView style={styles.container}>
