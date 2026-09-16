@@ -237,25 +237,42 @@ export default function TransacoesScreen() {
                     style={styles.inputBusca}
                     placeholder="Buscar global por nome, categoria..."
                     placeholderTextColor="#94a3b8"
-                    editable={false}
+                    value={busca}
+                    onChangeText={setBusca}
+                    clearButtonMode="while-editing"
                 />
             </View>
 
             {/* Filtro por tags */}
             <View style={styles.abasContainer}>
-                <TouchableOpacity style={[styles.aba, styles.abaAtiva]}>
-                    <ArrowUpDown size={14} color="#ffffff" />
-                    <Text style={[styles.textoAba, styles.textoAbaAtiva]}>Todas</Text>
+                <TouchableOpacity
+                    style={[styles.aba, filtroTipo === 'todas' && styles.abaAtiva]}
+                    onPress={() => setFiltroTipo('todas')}
+                >
+                    <ArrowUpDown size={14} color={filtroTipo === 'todas' ? '#ffffff' : '#64748b'} />
+                    <Text style={[styles.textoAba, filtroTipo === 'todas' && styles.textoAbaAtiva]}>
+                        Todas
+                    </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.aba}>
-                    <TrendingUp size={14} color="#10b981" />
-                    <Text style={styles.textoAba}>Receitas</Text>
+                <TouchableOpacity
+                    style={[styles.aba, filtroTipo === 'receita' && styles.abaReceitaAtiva]}
+                    onPress={() => setFiltroTipo('receita')}
+                >
+                    <TrendingUp size={14} color={filtroTipo === 'receita' ? '#ffffff' : '#10b981'} />
+                    <Text style={[styles.textoAba, filtroTipo === 'receita' && styles.textoAbaAtiva]}>
+                        Receitas
+                    </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.aba}>
-                    <TrendingDown size={14} color="#ef4444" />
-                    <Text style={styles.textoAba}>Despesas</Text>
+                <TouchableOpacity
+                    style={[styles.aba, filtroTipo === 'despesa' && styles.abaDespesaAtiva]}
+                    onPress={() => setFiltroTipo('despesa')}
+                >
+                    <TrendingDown size={14} color={filtroTipo === 'despesa' ? '#ffffff' : '#ef4444'} />
+                    <Text style={[styles.textoAba, filtroTipo === 'despesa' && styles.textoAbaAtiva]}>
+                        Despesas
+                    </Text>
                 </TouchableOpacity>
             </View>
 
