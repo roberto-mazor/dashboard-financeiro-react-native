@@ -531,6 +531,29 @@ export function ModalTransacao({
                                 </TouchableOpacity>
                             </View>
 
+                            {criandoCategoria && (
+                                <View style={styles.boxNovaCat}>
+                                    <TextInput
+                                        style={styles.inputNovaCat}
+                                        placeholder="Nome da categoria"
+                                        placeholderTextColor="#94a3b8"
+                                        value={nomeNovaCategoria}
+                                        onChangeText={setNomeNovaCategoria}
+                                    />
+                                    <TouchableOpacity
+                                        style={styles.botaoConfirmarNovaCat}
+                                        onPress={handleAdicionarCategoria}
+                                        disabled={salvandoNovaCat}
+                                    >
+                                        {salvandoNovaCat ? (
+                                            <ActivityIndicator size="small" color="#ffffff" />
+                                        ) : (
+                                            <Check size={18} color="#ffffff" />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
                             {/* Botão Salvar (Apenas visual - fecha o modal) */}
                             <TouchableOpacity
                                 style={[styles.botaoSalvar, tipo === 'receita' ? styles.bgReceita : styles.bgDespesa]}
@@ -750,5 +773,28 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: 'bold',
         color: '#4f46e5',
+    },
+    boxNovaCat: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+    },
+    inputNovaCat: {
+        flex: 1,
+        backgroundColor: '#f1f5f9',
+        borderWidth: 1,
+        borderColor: '#94a3b8',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        fontSize: 14,
+        color: '#0f172a',
+    },
+    botaoConfirmarNovaCat: {
+        backgroundColor: '#4f46e5',
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
