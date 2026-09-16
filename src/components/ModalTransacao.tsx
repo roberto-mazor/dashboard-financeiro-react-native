@@ -385,6 +385,11 @@ export function ModalTransacao({
         );
     }
 
+    const categoriasFiltradas = categorias.filter((c) => {
+        if (!c.tipo) return true;
+        return c.tipo.includes(tipo.substring(0, 3));
+    });
+
     return (
         <Modal visible={visivel} transparent animationType="slide" onRequestClose={handleFechar}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -551,6 +556,33 @@ export function ModalTransacao({
                                             <Check size={18} color="#ffffff" />
                                         )}
                                     </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {carregandoCategorias ? (
+                                <ActivityIndicator size="small" color="#4f46e5" style={{ marginVertical: 12 }} />
+                            ) : (
+                                <View style={styles.gradeCategorias}>
+                                    {categoriasFiltradas.map((cat) => {
+                                        const ativa = categoriaSelecionada?.id === cat.id;
+                                        return (
+                                            <TouchableOpacity
+                                                key={cat.id}
+                                                style={[
+                                                    styles.chip,
+                                                    ativa && (tipo === 'receita' ? styles.chipReceitaAtivo : styles.chipDespesaAtivo),
+                                                ]}
+                                                onPress={() => setCategoriaSelecionada(cat)}
+                                                onLongPress={() => iniciarEdicaoCategoria(cat)} // 👈 GATILHO QUE FALTAVA
+                                                delayLongPress={350}
+                                            >
+                                                <Tag size={13} color={ativa ? '#ffffff' : '#64748b'} />
+                                                <Text style={[styles.textoChip, ativa && styles.textoChipAtivo]}>
+                                                    {cat.nome}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </View>
                             )}
 
