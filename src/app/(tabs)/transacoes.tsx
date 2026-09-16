@@ -157,6 +157,16 @@ export default function TransacoesScreen() {
         }, [carregarTransacoes])
     );
 
+    function abrirEdicao(item: TransacaoItem) {
+        setTransacaoSelecionada(item);
+        setModalAberto(true);
+    }
+    
+    function abrirCriacao() {
+        setTransacaoSelecionada(null);
+        setModalAberto(true);
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
