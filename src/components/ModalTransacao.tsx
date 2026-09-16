@@ -510,26 +510,25 @@ export function ModalTransacao({
                             )}
 
                             {/* Categorias */}
-                            <Text style={styles.label}>Categoria</Text>
-                            <View style={styles.gradeCategorias}>
-                                {categoriasFiltradas.map((cat) => {
-                                    const ativa = categoriaSelecionada === cat.id;
-                                    return (
-                                        <TouchableOpacity
-                                            key={cat.id}
-                                            style={[
-                                                styles.chip,
-                                                ativa && (tipo === 'receita' ? styles.chipReceitaAtivo : styles.chipDespesaAtivo),
-                                            ]}
-                                            onPress={() => setCategoriaSelecionada(cat.id)}
-                                        >
-                                            <Tag size={13} color={ativa ? '#ffffff' : '#64748b'} />
-                                            <Text style={[styles.textoChip, ativa && styles.textoChipAtivo]}>
-                                                {cat.nome}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
+                            <View style={styles.categoriaHeader}>
+                                <Text style={styles.label}>
+                                    Categoria *{' '}
+                                    {categoriaSelecionada ? (
+                                        <Text style={styles.textoSelecionada}>({categoriaSelecionada.nome})</Text>
+                                    ) : (
+                                        <Text style={styles.textoObrigatorio}>(Toque em uma)</Text>
+                                    )}
+                                </Text>
+
+                                <TouchableOpacity
+                                    style={styles.botaoAddCat}
+                                    onPress={() => setCriandoCategoria(!criandoCategoria)}
+                                >
+                                    <Plus size={14} color="#4f46e5" />
+                                    <Text style={styles.textoAddCat}>
+                                        {criandoCategoria ? 'Cancelar' : 'Nova'}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
 
                             {/* Botão Salvar (Apenas visual - fecha o modal) */}
@@ -725,5 +724,31 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    categoriaHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    textoSelecionada: {
+        color: '#4f46e5',
+        fontWeight: 'bold',
+    },
+    textoObrigatorio: {
+        color: '#ef4444',
+        fontWeight: 'normal',
+        fontSize: 12,
+    },
+    botaoAddCat: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        padding: 4,
+    },
+    textoAddCat: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        color: '#4f46e5',
     },
 });
