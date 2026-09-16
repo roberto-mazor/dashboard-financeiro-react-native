@@ -276,18 +276,114 @@ export default function TransacoesScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Conteúdo Central Demonstrativo */}
-            <ScrollView contentContainerStyle={styles.conteudoCentral}>
-                <View style={styles.cardDemonstracao}>
-                    <View style={styles.iconePlaceholder}>
-                        <ReceiptText size={32} color="#4f46e5" />
-                    </View>
-                    <Text style={styles.tituloCardDemo}>Módulo de Transações</Text>
-                    <Text style={styles.textoCardDemo}>
-                        Painel de visualização e filtros configurado. Toque no botão flutuante abaixo para conferir o modal de lançamentos.
-                    </Text>
+            {/* Lista */}
+            {carregando ? (
+                <View style={styles.centroLoading}>
+                    <ActivityIndicator size="large" color="#4f46e5" />
                 </View>
-            </ScrollView>
+            ) : (
+                <FlatList
+                    data={transacoesFiltradas}
+                    keyExtractor={(item, idx) => String(item.id ?? item.id_transacao ?? idx)}
+                    contentContainerStyle={styles.listaConteudo}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={atualizando}
+                            onRefresh={() => {
+                                setAtualizando(true);
+                                carregarTransacoes();
+                            }}
+                            colors={['#4f46e5']}
+                        />
+                    }
+                    ListEmptyComponent={
+                        <View style={styles.cardVazio}>
+                            <Text style={styles.textoVazio}>
+                                {busca ? 'Nenhum resultado para a busca.' : `Nenhuma transação em ${MESES[dataSelecionada.getMonth()]}.`}
+                            </Text>
+                        </View>
+                    }
+                    renderItem={({ item }) => {
+                        const ehReceita = extrairTipoNormalizado(item) === 'receita';
+                        const nomeCat = extrairNomeCategoria(item);
+                        const dataFmt = formatarDataHora(item);
+                        const nomeCartao = extrairNomeCartao(item);
+
+                        return (
+                            <View style={styles.cardItem}>
+                                <View style={styles.itemEsquerda}>
+                                    <View
+                                        style={[
+                                            styles.iconeTipo,
+                                            ehReceita ? styles.bgReceitaIcone : styles.bgDespesaIcone,
+                                        ]}
+                                    >
+                                        {ehReceita ? (
+                                            <TrendingUp size={18} color="#10b981" />
+                                        ) : nomeCartao ? (
+                                            <CreditCard size={18} color="#ef4444" />
+                                        ) : (
+                                            <TrendingDown size={18} color="#ef4444" />
+                                        )}
+                                    </View>
+
+                                    <View style={styles.infoTransacao}>
+                                        <Text style={styles.descricaoTransacao} numberOfLines={1}>
+                                            {item.descricao}
+                                        </Text>
+
+                                        <View style={styles.metaTransacao}>
+                                            <Text style={styles.categoriaTransacao}>{nomeCat}</Text>
+                                            {dataFmt ? <Text style={styles.dataTransacao}> • {dataFmt}</Text> : null}
+
+                                            {/* BADGE DE CARTÃO - tag que identifica trasação com origem do cartão*/}
+                                            {nomeCartao && (
+                                                <View style={styles.badgeCartao}>
+                                                    <CreditCard size={10} color="#4f46e5" />
+                                                    <Text style={styles.textoBadgeCartao}>{nomeCartao}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <View style={styles.itemDireita}>
+                                    <Text
+                                        style={[
+                                            styles.valorTransacao,
+                                            ehReceita ? styles.textoVerde : styles.textoVermelho,
+                                        ]}
+                                    >
+                                        {ehReceita ? '+ ' : '- '}
+                                        {formatarMoeda(item.valor)}
+                                    </Text>
+
+                                    {/* Ações */}
+                                    <View style={styles.acoesContainer}>
+                                        <TouchableOpacity
+                                            style={styles.botaoAcao}
+                                            onPress={() => abrirEdicao(item)}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            {/* Icone de lapis*/}
+                                            <Edit2 size={15} color="#94a3b8" />
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={styles.botaoAcao}
+                                            onPress={() => handleExcluir(item)}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            {/* Icone de lixeira*/}
+                                            <Trash2 size={15} color="#ef4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+                        );
+                    }}
+                />
+            )}
 
             {/* Botão Flutuante (+) - Abre o Modal */}
             <TouchableOpacity
