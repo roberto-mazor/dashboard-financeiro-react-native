@@ -406,7 +406,6 @@ export function ModalTransacao({
                             </View>
 
                             {/* Seletor Tipo (Receita / Despesa) */}
-                            {/* Seletor Tipo */}
                             <View style={styles.containerTipo}>
                                 <TouchableOpacity
                                     style={[styles.botaoTipo, tipo === 'receita' && styles.botaoTipoReceitaAtivo]}
@@ -432,8 +431,8 @@ export function ModalTransacao({
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Campo Valor */}
-                            <Text style={styles.label}>Valor (R$)</Text>
+                            {/* Valor estilo Nubank */}
+                            <Text style={styles.label}>Valor (R$) *</Text>
                             <View style={styles.inputValorContainer}>
                                 <Text style={styles.simboloMoeda}>R$</Text>
                                 <TextInput
@@ -441,6 +440,7 @@ export function ModalTransacao({
                                     value={valorFormatado}
                                     onChangeText={handleValorChange}
                                     keyboardType="number-pad"
+                                    selectTextOnFocus
                                 />
                             </View>
 
