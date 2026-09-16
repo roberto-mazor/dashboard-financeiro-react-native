@@ -51,7 +51,7 @@ interface CartaoOption {
 interface ModalTransacaoProps {
     visivel: boolean;
     aoFechar: () => void;
-    aoSalvarSucesso?: () => void;
+    aoSalvarSucesso: () => void;
     transacaoParaEditar?: TransacaoItem | null;
 }
 
@@ -83,6 +83,7 @@ export function ModalTransacao({
     const [carregandoCategorias, setCarregandoCategorias] = useState(false);
     const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [valorNumerico, setValorNumerico] = useState(0);
+    const[salvando, setSalvando] = useState(false);
 
     // Estados de Cartão de Crédito
     const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
@@ -92,7 +93,18 @@ export function ModalTransacao({
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
     const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
 
+    useEffect(() => {
+        if (visivel) {
+            buscarCategorias();
+            buscarCartoes();
 
+            if (transacaoParaEditar) {
+                preencherParaEdicao(transacaoParaEditar);
+            } else {
+                resetar();
+            }
+        }
+    }, [visivel, transacaoParaEditar]);
 
     function preencherParaEdicao(item: TransacaoItem) {
         const tipoNorm = String(item.tipo || item.tipo_transacao || '').toLowerCase().includes('rec')
@@ -211,6 +223,63 @@ export function ModalTransacao({
             setCriandoCategoria(false);
         } finally {
             setSalvandoNovaCat(false);
+        }
+    }
+
+    async function handleSalvar() {
+        if (!descricao.trim()) {
+            Alert.alert('Atenção', 'Preencha a descrição.');
+            return;
+        }
+
+        if (valorNumerico <= 0) {
+            Alert.alert('Atenção', 'Digite um valor maior que R$ 0,00.');
+            return;
+        }
+
+        const idCat = categoriaSelecionada
+            ? Number(categoriaSelecionada.id ?? (categoriaSelecionada as any).id_categoria)
+            : null;
+
+        if (!idCat || isNaN(idCat)) {
+            Alert.alert('Atenção', 'Selecione uma categoria.');
+            return;
+        }
+
+        try {
+            setSalvando(true);
+            const hoje = new Date().toISOString().split('T')[0];
+
+            const payload = {
+                descricao: descricao.trim(),
+                valor: valorNumerico,
+                tipo: tipo.toLowerCase(),
+                id_categoria: idCat,
+                categoria_id: idCat,
+                data: hoje,
+                data_transacao: hoje,
+                id_cartao: tipo === 'despesa' ? cartaoSelecionado : null,
+            };
+
+            const idTransacao = transacaoParaEditar?.id ?? transacaoParaEditar?.id_transacao;
+
+            if (idTransacao) {
+                await api.put(`/transacoes/${idTransacao}`, payload);
+                Alert.alert('Sucesso', 'Transação atualizada com sucesso!');
+            } else {
+                await api.post('/transacoes', payload);
+                Alert.alert('Sucesso', 'Transação cadastrada com sucesso!');
+            }
+
+            resetar();
+            aoSalvarSucesso();
+            aoFechar();
+        } catch (error: any) {
+            console.error('Erro ao salvar transação:', error.response?.data || error.message);
+            const msg = error.response?.data?.error || error.response?.data?.message || 'Erro ao processar requisição.';
+            Alert.alert('Erro', msg);
+        } finally {
+            setSalvando(false);
         }
     }
 
