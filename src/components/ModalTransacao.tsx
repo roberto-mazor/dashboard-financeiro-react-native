@@ -92,6 +92,7 @@ export function ModalTransacao({
     // Estados de Nova Categoria
     const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
+    const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
     
     // Estados para edição/renomeação de categoria
     const [modalEditarCatVisivel, setModalEditarCatVisivel] = useState(false);
