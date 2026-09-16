@@ -99,6 +99,14 @@ export default function TransacoesScreen() {
         setDataSelecionada(novaData);
     }
 
+    function obterIntervaloMes(data: Date) {
+        const ano = data.getFullYear();
+        const mes = data.getMonth();
+        const primeiroDia = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+        const ultimoDiaNum = new Date(ano, mes + 1, 0).getDate();
+        const ultimoDia = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
+        return { primeiroDia, ultimoDia};
+    }
 
 
     return (
