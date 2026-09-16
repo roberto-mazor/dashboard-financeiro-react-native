@@ -11,6 +11,7 @@ import {
     TouchableWithoutFeedback,
     Keyboard,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { api } from '@/services/api'
 import {
@@ -86,6 +87,11 @@ export function ModalTransacao({
     // Estados de Cartão de Crédito
     const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
 
+    // Estados de Nova Categoria
+    const [criandoCategoria, setCriandoCategoria] = useState(false);
+    const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
+    const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
+
 
 
     function preencherParaEdicao(item: TransacaoItem) {
@@ -124,6 +130,7 @@ export function ModalTransacao({
             real.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         );
     }
+    
 
     function handleFechar() {
         setDescricao('');
@@ -168,6 +175,42 @@ export function ModalTransacao({
             }
         } catch (error: any) {
             console.error('Erro ao buscar cartões:', error.response?.data || error.message);
+        }
+    }
+
+    async function handleAdicionarCategoria() {
+        const nomeLimpo = nomeNovaCategoria.trim();
+        if (!nomeLimpo) {
+            Alert.alert('Atenção', 'Digite o nome da categoria.');
+            return;
+        }
+
+        try {
+            setSalvandoNovaCat(true);
+            const res = await api.post('/categorias', {
+                nome: nomeLimpo,
+                tipo: tipo.toLowerCase(),
+            });
+
+            const ret = res.data?.categoria || res.data;
+            const novaCat: Categoria = {
+                id: Number(ret?.id ?? ret?.id_categoria ?? Date.now()),
+                nome: ret?.nome || nomeLimpo,
+                tipo: tipo.toLowerCase(),
+            };
+
+            setCategorias((prev) => [novaCat, ...prev]);
+            setCategoriaSelecionada(novaCat);
+            setNomeNovaCategoria('');
+            setCriandoCategoria(false);
+        } catch {
+            await buscarCategorias();
+            const encontrada = categorias.find((c) => c.nome.toLowerCase() === nomeLimpo.toLowerCase());
+            if (encontrada) setCategoriaSelecionada(encontrada);
+            setNomeNovaCategoria('');
+            setCriandoCategoria(false);
+        } finally {
+            setSalvandoNovaCat(false);
         }
     }
 
