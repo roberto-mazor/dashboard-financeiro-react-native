@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,6 +6,9 @@ import {
     TextInput,
     TouchableOpacity,
     ScrollView,
+    FlatList,
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -18,11 +21,57 @@ import {
     ChevronRight,
     Calendar,
     ReceiptText,
+    Trash2,
+    Edit2,
+    CreditCard,
 } from 'lucide-react-native';
-import { ModalTransacao } from '@/components/ModalTransacao';
+import { ModalTransacao, TransacaoItem } from '@/components/ModalTransacao';
+
+const MESES = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+]
 
 export default function TransacoesScreen() {
+    const [dataSelecionada, setDataSelecionada] = useState(new Date());
+    const [transacoes, setTransacoes] = useState<TransacaoItem[]>([]);
+    const [carregando, setCarregando] = useState(true); 
+    const [busca, setBusca] = useState('');
+    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receitas' | 'despesas'>('todas'); // Pode ser no estado: 'todas' | 'receitas' | 'despesas'
+    
     const [modalAberto, setModalAberto] = useState(false);
+    const [trasacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
+
+    function formatarMoeda(valor: number | string){
+        const numero = Math.abs(Number(valor)) || 0;
+        return numero.toLocaleString('pt-br', {
+            style: 'currency',
+            currency: 'BRL',
+        });
+    }
+
+    function extrairTipoNormalizado(item: TransacaoItem): 'receita' | 'despesa' {
+        const raw = String(item.tipo || item.tipo_transacao || item.categoria.tipo || '').toLowerCase();
+        return raw.includes('rec') ? 'receita' : 'despesa';
+    }
+
+    function formatarDataHora(item: any): string {
+        const raw = item.data || item.data_trasacao || item.created_at || item.criado_em;
+        if (!raw) return '';
+
+        try {
+            const partes = String(raw).split('T')[0].split('-');
+            if (partes.length === 3){
+                return `${partes[2]}/${partes[1]}`;
+            }
+
+            const dataObj = new Date(raw);
+            if (isNaN(dataObj.getTime())) return '';
+            return dataObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+        } catch {
+            return '';
+        }
+    }
 
     return (
         <SafeAreaView style={styles.container}>
