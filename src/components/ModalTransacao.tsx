@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Modal,
     View,
@@ -12,6 +12,7 @@ import {
     Keyboard,
     ScrollView,
 } from 'react-native';
+import { api } from '@/services/api'
 import {
     X,
     TrendingUp,
@@ -67,12 +68,21 @@ const CARTOES_DEMO: CartaoOption[] = [
     { id_cartao: 2, nome: 'Itaú' },
 ];
 
-export function ModalTransacao({ visivel, aoFechar }: ModalTransacaoProps) {
+export function ModalTransacao({ 
+    visivel,
+    aoFechar,
+    aoSalvarSucesso,
+    transacaoParaEditar,
+ }: ModalTransacaoProps) {
     const [tipo, setTipo] = useState<'receita' | 'despesa'>('receita');
     const [descricao, setDescricao] = useState('');
     const [valorFormatado, setValorFormatado] = useState('0,00');
     const [categoriaSelecionada, setCategoriaSelecionada] = useState<number | null>(null);
     const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
+
+    // Estados de Cartão de Crédito
+    const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
+
 
     function handleValorChange(texto: string) {
         const apenasDigitos = texto.replace(/\D/g, '');
@@ -100,6 +110,18 @@ export function ModalTransacao({ visivel, aoFechar }: ModalTransacaoProps) {
     const categoriasFiltradas = CATEGORIAS_DEMO.filter((c) =>
         c.tipo.includes(tipo.substring(0, 3))
     );
+
+    async function buscarCartoes() {
+        try {
+            const res = await api.get('/cartoes');
+            const lista = res.data?.cartoes || res.data || [];
+            if (Array.isArray(lista)) {
+                setCartoes(lista);
+            }
+        } catch (error: any) {
+            console.error('Erro ao buscar cartões:', error.response?.data || error.message);
+        }
+    }
 
     return (
         <Modal visible={visivel} transparent animationType="slide" onRequestClose={handleFechar}>
