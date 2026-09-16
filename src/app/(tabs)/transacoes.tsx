@@ -194,6 +194,13 @@ export default function TransacoesScreen() {
         );
     }
 
+    const transacoesFiltradas = transacoes.filter((item) => {
+        const tipoItem = extrairTipoNormalizado(item);
+        return filtroTipo === 'todas' || tipoItem === filtroTipo;
+    });
+
+    const mesExtenso = `${MESES[dataSelecionada.getMonth()]} de ${dataSelecionada.getFullYear()}`;
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
