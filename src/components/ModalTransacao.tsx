@@ -5,20 +5,25 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
+    ActivityIndicator,
+    Alert,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
     ScrollView,
-    Alert,
 } from 'react-native';
-import { api } from '@/services/api'
+import { api } from '@/services/api';
 import {
     X,
     TrendingUp,
     TrendingDown,
     Tag,
+    Plus,
+    Check,
+    Edit2,
+    Trash2,
     CreditCard as CreditCardIcon,
     Wallet,
 } from 'lucide-react-native';
@@ -47,6 +52,8 @@ interface Categoria {
 interface CartaoOption {
     id_cartao: number;
     nome: string;
+    bandeira?: string;
+    limite_disponivel?: number | string;
 }
 
 interface ModalTransacaoProps {
