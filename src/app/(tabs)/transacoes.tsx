@@ -5,73 +5,71 @@ import {
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    ScrollView,
     FlatList,
     ActivityIndicator,
+    Alert,
     RefreshControl,
-    Alert
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
+import { useFocusEffect } from 'expo-router';
 import {
     Search,
     TrendingUp,
     TrendingDown,
+    Trash2,
+    Edit2,
     Plus,
     ArrowUpDown,
+    CreditCard,
     ChevronLeft,
     ChevronRight,
     Calendar,
-    ReceiptText,
-    Trash2,
-    Edit2,
-    CreditCard,
 } from 'lucide-react-native';
 import { ModalTransacao, TransacaoItem } from '@/components/ModalTransacao';
 
 const MESES = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-]
+];
 
 export default function TransacoesScreen() {
     const [dataSelecionada, setDataSelecionada] = useState(new Date());
     const [transacoes, setTransacoes] = useState<TransacaoItem[]>([]);
-    const [carregando, setCarregando] = useState(true); 
-    const [atualizando, setAtualizando ] = useState(false);
+    const [carregando, setCarregando] = useState(true);
+    const [atualizando, setAtualizando] = useState(false);
     const [busca, setBusca] = useState('');
-    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receitas' | 'despesas'>('todas'); // Pode ser no estado: 'todas' | 'receitas' | 'despesas'
-    
-    const [modalAberto, setModalAberto] = useState(false);
-    const [trasacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
+    const [filtroTipo, setFiltroTipo] = useState<'todas' | 'receita' | 'despesa'>('todas'); // Pode ser: 'todas' | 'receitas' | 'despesas'
 
-    function formatarMoeda(valor: number | string){
+    const [modalAberto, setModalAberto] = useState(false);
+    const [transacaoSelecionada, setTransacaoSelecionada] = useState<TransacaoItem | null>(null);
+
+    function formatarMoeda(valor: number | string) {
         const numero = Math.abs(Number(valor)) || 0;
-        return numero.toLocaleString('pt-br', {
+        return numero.toLocaleString('pt-BR', {
             style: 'currency',
             currency: 'BRL',
         });
     }
 
     function extrairTipoNormalizado(item: TransacaoItem): 'receita' | 'despesa' {
-        const raw = String(item.tipo || item.tipo_transacao || item.categoria.tipo || '').toLowerCase();
+        const raw = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
         return raw.includes('rec') ? 'receita' : 'despesa';
     }
 
     function formatarDataHora(item: any): string {
-        const raw = item.data || item.data_trasacao || item.created_at || item.criado_em;
+        const raw = item.data || item.data_transacao || item.created_at || item.criado_em;
         if (!raw) return '';
 
         try {
             const partes = String(raw).split('T')[0].split('-');
-            if (partes.length === 3){
+            if (partes.length === 3) {
                 return `${partes[2]}/${partes[1]}`;
             }
 
             const dataObj = new Date(raw);
             if (isNaN(dataObj.getTime())) return '';
-            return dataObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+            return dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
         } catch {
             return '';
         }
@@ -87,13 +85,13 @@ export default function TransacoesScreen() {
         if (item.cartao && typeof item.cartao === 'object' && item.cartao.nome) {
             return item.cartao.nome;
         }
-        if (item.id.cartao) {
+        if (item.id_cartao) {
             return 'Cartão';
         }
         return null;
     }
 
-    function mudarMes (direcao: 'anterior' | 'proximo') {
+    function mudarMes(direcao: 'anterior' | 'proximo') {
         const novaData = new Date(dataSelecionada);
         if (direcao === 'anterior') {
             novaData.setMonth(novaData.getMonth() - 1);
@@ -109,7 +107,7 @@ export default function TransacoesScreen() {
         const primeiroDia = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
         const ultimoDiaNum = new Date(ano, mes + 1, 0).getDate();
         const ultimoDia = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
-        return { primeiroDia, ultimoDia};
+        return { primeiroDia, ultimoDia };
     }
 
     const carregarTransacoes = useCallback(async () => {
@@ -162,7 +160,7 @@ export default function TransacoesScreen() {
         setTransacaoSelecionada(item);
         setModalAberto(true);
     }
-    
+
     function abrirCriacao() {
         setTransacaoSelecionada(null);
         setModalAberto(true);
@@ -212,6 +210,7 @@ export default function TransacoesScreen() {
             <View style={styles.containerSeletorMes}>
                 <TouchableOpacity
                     style={styles.botaoSetaMes}
+                    onPress={() => mudarMes('anterior')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <ChevronLeft size={20} color="#475569" />
@@ -219,11 +218,12 @@ export default function TransacoesScreen() {
 
                 <View style={styles.boxMesTexto}>
                     <Calendar size={15} color="#4f46e5" />
-                    <Text style={styles.textoMesExtenso}>Setembro de 2026</Text>
+                    <Text style={styles.textoMesExtenso}>{mesExtenso}</Text>
                 </View>
 
                 <TouchableOpacity
                     style={styles.botaoSetaMes}
+                    onPress={() => mudarMes('proximo')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <ChevronRight size={20} color="#475569" />
@@ -385,20 +385,19 @@ export default function TransacoesScreen() {
                 />
             )}
 
-            {/* Botão Flutuante (+) - Abre o Modal */}
-            <TouchableOpacity
-                style={styles.fab}
-                onPress={() => setModalAberto(true)}
-                activeOpacity={0.85}
-            >
+            {/* Botão flutueante - icone Mais + Plus*/}
+            <TouchableOpacity style={styles.fab} onPress={abrirCriacao} activeOpacity={0.85}>
                 <Plus color="#ffffff" size={28} />
             </TouchableOpacity>
 
-            {/* Modal de Transação (Modo Visual) */}
             <ModalTransacao
                 visivel={modalAberto}
-                aoFechar={() => setModalAberto(false)}
-                aoSalvarSucesso={() => setModalAberto(false)}
+                aoFechar={() => {
+                    setModalAberto(false);
+                    setTransacaoSelecionada(null);
+                }}
+                aoSalvarSucesso={carregarTransacoes}
+                transacaoParaEditar={transacaoSelecionada}
             />
         </SafeAreaView>
     );
@@ -495,6 +494,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#4f46e5',
         borderColor: '#4f46e5',
     },
+    abaReceitaAtiva: {
+        backgroundColor: '#10b981',
+        borderColor: '#10b981',
+    },
+    abaDespesaAtiva: {
+        backgroundColor: '#ef4444',
+        borderColor: '#ef4444',
+    },
     textoAba: {
         fontSize: 13,
         fontWeight: '600',
@@ -503,40 +510,121 @@ const styles = StyleSheet.create({
     textoAbaAtiva: {
         color: '#ffffff',
     },
-    conteudoCentral: {
-        paddingHorizontal: 20,
-        paddingTop: 20,
+    centroLoading: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    cardDemonstracao: {
+    listaConteudo: {
+        paddingHorizontal: 20,
+        paddingBottom: 90,
+    },
+    cardItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        padding: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        marginBottom: 10,
+    },
+    itemEsquerda: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginRight: 8,
+    },
+    iconeTipo: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    bgReceitaIcone: {
+        backgroundColor: '#dcfce7',
+    },
+    bgDespesaIcone: {
+        backgroundColor: '#fee2e2',
+    },
+    infoTransacao: {
+        flex: 1,
+    },
+    descricaoTransacao: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#0f172a',
+    },
+    metaTransacao: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 4,
+        marginTop: 2,
+    },
+    categoriaTransacao: {
+        fontSize: 12,
+        color: '#64748b',
+    },
+    dataTransacao: {
+        fontSize: 11,
+        color: '#94a3b8',
+    },
+    badgeCartao: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#ede9fe',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginLeft: 4,
+    },
+    textoBadgeCartao: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#4f46e5',
+    },
+    itemDireita: {
+        alignItems: 'flex-end',
+        gap: 6,
+        marginLeft: 8,
+    },
+    valorTransacao: {
+        fontSize: 15,
+        fontWeight: 'bold',
+    },
+    textoVerde: {
+        color: '#10b981',
+    },
+    textoVermelho: {
+        color: '#ef4444',
+    },
+    acoesContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    botaoAcao: {
+        padding: 2,
+    },
+    cardVazio: {
         backgroundColor: '#ffffff',
         padding: 28,
-        borderRadius: 16,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: '#e2e8f0',
         alignItems: 'center',
+        marginTop: 20,
     },
-    iconePlaceholder: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#ede9fe',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-    tituloCardDemo: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#0f172a',
-        marginBottom: 8,
-    },
-    textoCardDemo: {
-        color: '#64748b',
+    textoVazio: {
+        color: '#94a3b8',
         fontSize: 14,
-        textAlign: 'center',
-        lineHeight: 20,
     },
-    fab: {
+    fab: { // botão adicionar / abrir modal 
         position: 'absolute',
         bottom: 24,
         right: 20,
