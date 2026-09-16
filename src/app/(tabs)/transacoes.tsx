@@ -79,6 +79,16 @@ export default function TransacoesScreen() {
         return extrairTipoNormalizado(item) === 'receita' ? 'Receita' : 'Despesa';
     }
 
+    function extrairNomeCartao(item: any): string | null {
+        if (item.cartao && typeof item.cartao === 'object' && item.cartao.nome) {
+            return item.cartao.nome;
+        }
+        if (item.id.cartao) {
+            return 'Cartão';
+        }
+        return null;
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
