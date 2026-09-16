@@ -158,6 +158,7 @@ export function ModalTransacao({
         setTipo('receita');
         aoFechar();
     }
+    
 
     const categoriasFiltradas = CATEGORIAS_DEMO.filter((c) =>
         c.tipo.includes(tipo.substring(0, 3))
@@ -230,17 +231,6 @@ export function ModalTransacao({
         } finally {
             setSalvandoNovaCat(false);
         }
-    }
-
-    function resetar() {
-        setDescricao('');
-        setValorFormatado('0,00');
-        setValorNumerico(0);
-        setCategoriaSelecionada(null);
-        setCartaoSelecionado(null);
-        setCriandoCategoria(false);
-        setNomeNovaCategoria('');
-        setTipo('receita');
     }
 
     async function handleSalvar() {
@@ -341,6 +331,54 @@ export function ModalTransacao({
         } finally {
             setSalvandoCategoria(false);
         }
+    }
+
+    function handleExcluirCategoria() {
+        if (!categoriaEmEdicao) return;
+
+        const idCat = categoriaEmEdicao.id ?? categoriaEmEdicao.id_categoria;
+        const nomeCat = categoriaEmEdicao.nome;
+
+        Alert.alert(
+            'Excluir Categoria',
+            `Deseja realmente remover a categoria "${nomeCat}"?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setSalvandoCategoria(true);
+                            await api.delete(`/categorias/${idCat}`);
+
+                            // Remove da lista local imediatamente
+                            setCategorias((prev) =>
+                                prev.filter((c) => (c.id ?? c.id_categoria) !== idCat)
+                            );
+
+                            // Se for a categoria atualmente selecionada, desseleciona
+                            if ((categoriaSelecionada?.id ?? categoriaSelecionada?.id_categoria) === idCat) {
+                                setCategoriaSelecionada(null);
+                            }
+
+                            Alert.alert('Sucesso', 'Categoria removida com sucesso!');
+                            setModalEditarCatVisivel(false);
+                            setCategoriaEmEdicao(null);
+                        } catch (error: any) {
+                            console.error('Erro ao excluir categoria:', error.response?.data || error.message);
+                            const msg =
+                                error.response?.data?.error ||
+                                error.response?.data?.message ||
+                                'Não foi possível remover a categoria.';
+                            Alert.alert('Erro', msg);
+                        } finally {
+                            setSalvandoCategoria(false);
+                        }
+                    },
+                },
+            ]
+        );
     }
 
     return (
