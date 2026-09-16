@@ -73,6 +73,12 @@ export default function TransacoesScreen() {
         }
     }
 
+    function extrairNomeCategoria(item: any): string {
+        if (typeof item.categoria === 'string' && item.categoria.trim()) return item.categoria;
+        if (typeof item.categoria === 'object' && item.categoria?.nome) return item.categoria.nome;
+        return extrairTipoNormalizado(item) === 'receita' ? 'Receita' : 'Despesa';
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
