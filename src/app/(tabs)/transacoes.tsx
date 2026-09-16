@@ -8,7 +8,8 @@ import {
     ScrollView,
     FlatList,
     ActivityIndicator,
-    RefreshControl
+    RefreshControl,
+    Alert
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -165,6 +166,32 @@ export default function TransacoesScreen() {
     function abrirCriacao() {
         setTransacaoSelecionada(null);
         setModalAberto(true);
+    }
+
+    function handleExcluir(item: TransacaoItem) {
+        const idTransacao = item.id ?? item.id_transacao;
+
+        Alert.alert(
+            'Confirmar Exclusão',
+            `Deseja realmente apagar a transação "${item.descricao}"?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    onPress: async () => {
+                        try {
+                            await api.delete(`/transacoes/${idTransacao}`);
+                            setTransacoes((prev) =>
+                                prev.filter((t) => (t.id ?? t.id_transacao) !== idTransacao)
+                            );
+                            Alert.alert('Sucesso', 'Transação excluída!');
+                        } catch (error: any) {
+                            const msg = error.response?.data?.error || 'Não foi possível excluir a transação.';
+                            Alert.alert('Erro', msg);
+                        }
+                    },
+                },
+            ]
+        );
     }
 
     return (
