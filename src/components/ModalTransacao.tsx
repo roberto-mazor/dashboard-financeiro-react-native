@@ -586,12 +586,19 @@ export function ModalTransacao({
                                 </View>
                             )}
 
-                            {/* Botão Salvar (Apenas visual - fecha o modal) */}
+                            {/* Botão Salvar */}
                             <TouchableOpacity
                                 style={[styles.botaoSalvar, tipo === 'receita' ? styles.bgReceita : styles.bgDespesa]}
-                                onPress={handleFechar}
+                                onPress={handleSalvar}
+                                disabled={salvando}
                             >
-                                <Text style={styles.textoBotaoSalvar}>Confirmar Transação</Text>
+                                {salvando ? (
+                                    <ActivityIndicator color="#ffffff" />
+                                ) : (
+                                    <Text style={styles.textoBotaoSalvar}>
+                                        {transacaoParaEditar ? 'Atualizar Transação' : 'Confirmar Transação'}
+                                    </Text>
+                                )}
                             </TouchableOpacity>
                         </ScrollView>
                     </KeyboardAvoidingView>
