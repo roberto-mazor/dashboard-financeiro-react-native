@@ -1,25 +1,25 @@
-import React, { useState, useCallback } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ModalNovoCartao } from '@/components/ModalNovoCartao';
 import { api } from '@/services/api';
 import { useFocusEffect } from 'expo-router';
 import {
-    CreditCard as CreditCardIcon,
-    Trash2,
-    Plus,
     Calendar,
     CheckCircle2,
+    CreditCard as CreditCardIcon,
+    Plus,
+    Trash2,
 } from 'lucide-react-native';
-import { ModalNovoCartao } from '@/components/ModalNovoCartao';
+import React, { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface CartaoItem {
     id_cartao: number;
@@ -91,8 +91,9 @@ export default function CartoesScreen() {
                             Alert.alert('Sucesso', 'Fatura paga e limite restabelecido com sucesso!');
                             carregarCartoes();
                         } catch (error: any) {
-                            const msg = error.response?.data?.error || 'Erro ao processar pagamento.';
-                            Alert.alert('Erro', msg);
+                            console.error('Erro detalhado fatura:', error.response?.data || error.message);
+                            const msg = error.response?.data?.error || error.response?.data?.message || 'Não foi possível registrar o pagamento.';
+                            Alert.alert('Erro ao pagar fatura', msg);
                         } finally {
                             setPagandoId(null);
                         }

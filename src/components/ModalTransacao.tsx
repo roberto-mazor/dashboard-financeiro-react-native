@@ -247,6 +247,21 @@ export function ModalTransacao({
             return;
         }
 
+        // Se for despesa no crédito, valida se o cartão tem limite
+        if (tipo === 'despesa' && cartaoSelecionado) {
+            const cartaoInfo = cartoes.find((c) => c.id_cartao === cartaoSelecionado);
+            if (cartaoInfo && cartaoInfo.limite_disponivel !== undefined) {
+                const disponivel = Number(cartaoInfo.limite_disponivel) || 0;
+                if (valorNumerico > disponivel) {
+                    Alert.alert(
+                        'Limite Insuficiente',
+                        `Este cartão possui apenas R$ ${disponivel.toFixed(2).replace('.', ',')} de limite disponível.`
+                    );
+                    return;
+                }
+            }
+        }
+
         try {
             setSalvando(true);
             const hoje = new Date().toISOString().split('T')[0];
