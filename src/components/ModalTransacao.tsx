@@ -28,6 +28,8 @@ import {
     Wallet,
 } from 'lucide-react-native';
 
+
+
 export interface TransacaoItem {
     id?: number | string;
     id_transacao?: number | string;
@@ -63,30 +65,30 @@ interface ModalTransacaoProps {
     transacaoParaEditar?: TransacaoItem | null;
 }
 
-export function ModalTransacao({ 
+export function ModalTransacao({
     visivel,
     aoFechar,
     aoSalvarSucesso,
     transacaoParaEditar,
- }: ModalTransacaoProps) {
+}: ModalTransacaoProps) {
     const [tipo, setTipo] = useState<'receita' | 'despesa'>('receita');
     const [descricao, setDescricao] = useState('');
     const [valorFormatado, setValorFormatado] = useState('0,00');
-    const [categoriaSelecionada, setCategoriaSelecionada] = useState<Categoria | null>(null);
-    const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
-    const [carregandoCategorias, setCarregandoCategorias] = useState(false);
-    const [categorias, setCategorias] = useState<Categoria[]>([]);
     const [valorNumerico, setValorNumerico] = useState(0);
-    const[salvando, setSalvando] = useState(false);
+    const [categoriaSelecionada, setCategoriaSelecionada] = useState<Categoria | null>(null);
+    const [categorias, setCategorias] = useState<Categoria[]>([]);
+    const [carregandoCategorias, setCarregandoCategorias] = useState(false);
+    const [salvando, setSalvando] = useState(false);
 
     // Estados de Cartão de Crédito
     const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
+    const [cartaoSelecionado, setCartaoSelecionado] = useState<number | null>(null);
 
     // Estados de Nova Categoria
     const [criandoCategoria, setCriandoCategoria] = useState(false);
     const [nomeNovaCategoria, setNomeNovaCategoria] = useState('');
     const [salvandoNovaCat, setSalvandoNovaCat] = useState(false);
-    
+
     // Estados para edição/renomeação de categoria
     const [modalEditarCatVisivel, setModalEditarCatVisivel] = useState(false);
     const [categoriaEmEdicao, setCategoriaEmEdicao] = useState<any | null>(null);
@@ -133,24 +135,16 @@ export function ModalTransacao({
         const apenasDigitos = texto.replace(/\D/g, '');
         if (!apenasDigitos || apenasDigitos === '0') {
             setValorFormatado('0,00');
+            setValorNumerico(0);
             return;
         }
 
         const centavos = parseInt(apenasDigitos.slice(0, 10), 10);
         const real = centavos / 100;
+        setValorNumerico(real);
         setValorFormatado(
             real.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         );
-    }
-    
-
-    function handleFechar() {
-        setDescricao('');
-        setValorFormatado('0,00');
-        setCategoriaSelecionada(null);
-        setCartaoSelecionado(null);
-        setTipo('receita');
-        aoFechar();
     }
 
     async function buscarCategorias() {
@@ -222,13 +216,15 @@ export function ModalTransacao({
         }
     }
 
-    function handleFechar() {
+    function resetar() {
         setDescricao('');
         setValorFormatado('0,00');
+        setValorNumerico(0);
         setCategoriaSelecionada(null);
         setCartaoSelecionado(null);
+        setCriandoCategoria(false);
+        setNomeNovaCategoria('');
         setTipo('receita');
-        aoFechar();
     }
 
     async function handleSalvar() {
@@ -385,13 +381,15 @@ export function ModalTransacao({
         );
     }
 
+
     const categoriasFiltradas = categorias.filter((c) => {
         if (!c.tipo) return true;
         return c.tipo.includes(tipo.substring(0, 3));
     });
 
     return (
-        <Modal visible={visivel} transparent animationType="slide" onRequestClose={handleFechar}>
+        // modal editar transação
+        <Modal visible={visivel} transparent animationType="slide" onRequestClose={aoFechar}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.overlay}>
                     <KeyboardAvoidingView
@@ -410,7 +408,7 @@ export function ModalTransacao({
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Seletor Tipo (Receita / Despesa) */}
+                            {/* Seletor Tipo */}
                             <View style={styles.containerTipo}>
                                 <TouchableOpacity
                                     style={[styles.botaoTipo, tipo === 'receita' && styles.botaoTipoReceitaAtivo]}
@@ -604,6 +602,81 @@ export function ModalTransacao({
                     </KeyboardAvoidingView>
                 </View>
             </TouchableWithoutFeedback>
+            {/* Mini-Modal para Renomear Categoria */}
+            <Modal
+                visible={modalEditarCatVisivel}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setModalEditarCatVisivel(false)}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.overlayMiniModal}>
+                        <View style={styles.caixaMiniModal}>
+                            {/* Topo do Modal: apenas título e botão de fechar */}
+                            <View style={styles.topoMiniModal}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Edit2 size={18} color="#4f46e5" />
+                                    <Text style={styles.tituloMiniModal}>Editar Categoria</Text>
+                                </View>
+
+                                <TouchableOpacity
+                                    onPress={() => setModalEditarCatVisivel(false)}
+                                    disabled={salvandoCategoria}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <X size={22} color="#64748b" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.labelMiniModal}>Nome da Categoria</Text>
+
+                            {/* Linha com Input + Botão de Excluir */}
+                            <View style={styles.linhaInputComAcao}>
+                                <TextInput
+                                    style={styles.inputMiniModalComAcao}
+                                    value={novoNomeCategoria}
+                                    onChangeText={setNovoNomeCategoria}
+                                    placeholder="Ex: Alimentação, Curso..."
+                                    placeholderTextColor="#94a3b8"
+                                    autoFocus
+                                />
+
+                                <TouchableOpacity
+                                    style={styles.botaoExcluirInput}
+                                    onPress={handleExcluirCategoria}
+                                    disabled={salvandoCategoria}
+                                    activeOpacity={0.7}
+                                >
+                                    <Trash2 size={20} color="#ef4444" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Botões de Ação */}
+                            <View style={styles.linhaBotoesMiniModal}>
+                                <TouchableOpacity
+                                    style={styles.botaoCancelarMiniModal}
+                                    onPress={() => setModalEditarCatVisivel(false)}
+                                    disabled={salvandoCategoria}
+                                >
+                                    <Text style={styles.textoBotaoCancelar}>Cancelar</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.botaoSalvarMiniModal}
+                                    onPress={handleSalvarEdicaoCategoria}
+                                    disabled={salvandoCategoria}
+                                >
+                                    {salvandoCategoria ? (
+                                        <ActivityIndicator size="small" color="#ffffff" />
+                                    ) : (
+                                        <Text style={styles.textoBotaoSalvarMini}>Salvar</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </Modal>
     );
 }
@@ -736,71 +809,11 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontWeight: 'bold',
     },
-    gradeCategorias: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginBottom: 20,
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-        backgroundColor: '#f8fafc',
-    },
-    chipReceitaAtivo: {
-        backgroundColor: '#10b981',
-        borderColor: '#10b981',
-    },
-    chipDespesaAtivo: {
-        backgroundColor: '#ef4444',
-        borderColor: '#ef4444',
-    },
-    textoChip: {
-        fontSize: 13,
-        color: '#475569',
-        fontWeight: '500',
-    },
-    textoChipAtivo: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-    },
-    botaoSalvar: {
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 4,
-    },
-    bgReceita: {
-        backgroundColor: '#10b981',
-    },
-    bgDespesa: {
-        backgroundColor: '#ef4444',
-    },
-    textoBotaoSalvar: {
-        color: '#ffffff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
     categoriaHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 8,
-    },
-    textoSelecionada: {
-        color: '#4f46e5',
-        fontWeight: 'bold',
-    },
-    textoObrigatorio: {
-        color: '#ef4444',
-        fontWeight: 'normal',
-        fontSize: 12,
     },
     botaoAddCat: {
         flexDirection: 'row',
@@ -835,5 +848,164 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    gradeCategorias: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 20,
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        backgroundColor: '#f8fafc',
+    },
+    chipReceitaAtivo: {
+        backgroundColor: '#10b981',
+        borderColor: '#10b981',
+    },
+    chipDespesaAtivo: {
+        backgroundColor: '#ef4444',
+        borderColor: '#ef4444',
+    },
+    textoChip: {
+        fontSize: 13,
+        color: '#475569',
+        fontWeight: '500',
+    },
+    textoChipAtivo: {
+        color: '#ffffff',
+        fontWeight: 'bold',
+    },
+    textoSelecionada: {
+        color: '#4f46e5',
+        fontWeight: 'bold',
+    },
+    textoObrigatorio: {
+        color: '#ef4444',
+        fontWeight: 'normal',
+        fontSize: 12,
+    },
+    botaoSalvar: {
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    bgReceita: {
+        backgroundColor: '#10b981',
+    },
+    bgDespesa: {
+        backgroundColor: '#ef4444',
+    },
+    textoBotaoSalvar: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+
+    // Modal Editar Categoria
+    overlayMiniModal: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        zIndex: 9999,
+        elevation: 20,
+    },
+    caixaMiniModal: {
+        width: '100%',
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        padding: 20,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+    },
+    topoMiniModal: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    tituloMiniModal: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#0f172a',
+    },
+    labelMiniModal: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#475569',
+        marginBottom: 8,
+    },
+    linhaInputComAcao: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 20,
+    },
+    inputMiniModalComAcao: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontSize: 15,
+        color: '#0f172a',
+    },
+    botaoExcluirInput: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: '#fee2e2',
+        borderWidth: 1,
+        borderColor: '#fecaca',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    linhaBotoesMiniModal: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    botaoCancelarMiniModal: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        alignItems: 'center',
+    },
+    textoBotaoCancelar: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    botaoSalvarMiniModal: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: '#4f46e5',
+        alignItems: 'center',
+    },
+    textoBotaoSalvarMini: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#ffffff',
     },
 });
