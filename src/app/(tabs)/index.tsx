@@ -172,7 +172,7 @@ export default function Dashboard() {
             const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
 
             let receitasCalculadas = 0;
-            let despesasContaCalculadas = 0; // Saídas reais do saldo (sem duplicar cartão)
+            let despesasContaCalculadas = 0; // Saídas reais do saldo para não duplicar
 
             if (Array.isArray(listaBruta)) {
                 const listaOrdenada = [...listaBruta].sort((a: any, b: any) => {
@@ -191,13 +191,13 @@ export default function Dashboard() {
                 listaOrdenada.forEach((item: any) => {
                     const val = Math.abs(Number(item.valor)) || 0;
                     const t = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
-                    const temCartaoVinculado = Boolean(item.id_cartao || item.cartao_id);
+                    const ehCredito = Boolean(item.id_cartao || item.cartao_id);
 
                     if (t.includes('rec')) {
                         receitasCalculadas += val;
                     } else if (t.includes('desp')) {
-                        // Só debita do saldo se NÃO for compra no crédito (ou seja: dinheiro, pix ou o pagamento de fatura que tem id_cartao: null)
-                        if (!temCartaoVinculado) {
+                        // Só debita do saldo se NÃO for compra no crédito
+                        if (!ehCredito) {
                             despesasContaCalculadas += val;
                         }
                     }
