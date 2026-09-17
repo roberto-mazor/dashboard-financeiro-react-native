@@ -278,7 +278,7 @@ export default function Dashboard() {
                     currency: 'BRL',
                 }),
                 // propriedades de centralização na área do arco
-                textColor: '#ffffff',
+                // textColor: '#ffffff',
                 textSize: 11,
                 fontWeight: 'bold',
                 shiftTextY: Number(porcentagem) > 50 ? +6 : 0,
@@ -374,22 +374,12 @@ export default function Dashboard() {
                                     <PieChart
                                         data={dadosGrafico}
                                         donut
-                                        showText
-                                            textColor="ffffff"
                                         textSize={11}
                                         fontWeight="bold"
                                         radius={75}
                                         innerRadius={45}
                                         innerCircleColor="#ffffff"
                                         labelsPosition="outward"
-                                        centerLabelComponent={() => (
-                                            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                                                <Text style={{ fontSize: 10, color: '#64748b' }}>Total</Text>
-                                                <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#0f172a' }}>
-                                                    {formatarMoeda(resumo.totalDespesas)}
-                                                </Text>
-                                            </View>
-                                        )}
                                     />
 
                                     {/* Legenda */}
