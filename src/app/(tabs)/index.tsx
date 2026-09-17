@@ -172,37 +172,39 @@ export default function Dashboard() {
             const listaBruta: Transacao[] = resTransacoes.data?.transacoes || resTransacoes.data || [];
 
             let receitasCalculadas = 0;
-            let despesasCalculadas = 0;
+            let despesasContaCalculadas = 0; // Saídas reais do saldo (sem duplicar cartão)
 
-            //Ordena as transações da mais recente para a mais antiga pela data
             if (Array.isArray(listaBruta)) {
                 const listaOrdenada = [...listaBruta].sort((a: any, b: any) => {
                     const dataA = new Date(a.data || a.data_transacao || a.created_at || 0).getTime();
                     const dataB = new Date(b.data || b.data_transacao || b.created_at || 0).getTime();
                     if (dataB !== dataA) return dataB - dataA;
 
-                    // em caso de empate ordena pelo ID mais alto
                     const idA = Number(a.id ?? a.id_transacao ?? 0);
                     const idB = Number(b.id ?? b.id_transacao ?? 0);
                     return idB - idA;
                 });
 
-                setTransacoes(listaOrdenada.slice(0, 10)); // mostra apenas 10
+                setTransacoes(listaOrdenada.slice(0, 10));
 
-                //Percorre todas as transações da lista para calcular
+                // Cálculo do Saldo e Despesas Reais
                 listaOrdenada.forEach((item: any) => {
-                    const val = Math.abs(Number(item.valor)) || 0; 
+                    const val = Math.abs(Number(item.valor)) || 0;
                     const t = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
+                    const temCartaoVinculado = Boolean(item.id_cartao || item.cartao_id);
 
-                    if (t === 'receita') {
+                    if (t.includes('rec')) {
                         receitasCalculadas += val;
-                    } else {
-                        despesasCalculadas += val;
+                    } else if (t.includes('desp')) {
+                        // Só debita do saldo se NÃO for compra no crédito (ou seja: dinheiro, pix ou o pagamento de fatura que tem id_cartao: null)
+                        if (!temCartaoVinculado) {
+                            despesasContaCalculadas += val;
+                        }
                     }
                 });
             }
 
-            // 2. Busca resumo na API
+            // 2. Busca resumo na API com fallback consistente
             try {
                 const resResumo = await api.get('/dashboard/resumo', {
                     params: {
@@ -210,24 +212,21 @@ export default function Dashboard() {
                         data_fim: ultimoDia,
                     },
                 });
-                const d = resResumo.data || {}; // caso o objeto retorne vazio entra no d para evitar erro
+                const d = resResumo.data || {};
 
                 const recApi = Number(d.entradas ?? d.totalReceitas ?? d.receitas ?? 0);
-                const despApi = Number(d.saidas ?? d.totalDespesas ?? d.despesas ?? 0);
                 const saldoApi = Number(d.saldo ?? d.saldoTotal ?? d.saldo_atual ?? 0);
 
-                //Se a API retornar um valor maior que zero (recApi > 0), utiliza o dado da API
                 setResumo({
-                    saldoTotal: saldoApi,
+                    saldoTotal: saldoApi !== 0 ? saldoApi : (receitasCalculadas - despesasContaCalculadas),
                     totalReceitas: recApi > 0 ? recApi : receitasCalculadas,
-                    totalDespesas: despApi > 0 ? despApi : despesasCalculadas,
+                    totalDespesas: despesasContaCalculadas, // Usa o total real sem duplicar
                 });
             } catch {
-                // se der erro no processo acima o calculo é feito localmente
                 setResumo({
-                    saldoTotal: receitasCalculadas - despesasCalculadas,
+                    saldoTotal: receitasCalculadas - despesasContaCalculadas,
                     totalReceitas: receitasCalculadas,
-                    totalDespesas: despesasCalculadas,
+                    totalDespesas: despesasContaCalculadas,
                 });
             }
         } catch (error: any) {
@@ -249,7 +248,7 @@ export default function Dashboard() {
         carregarDados();
     }
 
-    // 3. Agrupamento das despesas por categoria para o gráfico (calculado via useMemo)
+    // 3. Agrupamento das despesas por categoria para o gráfico
     const dadosGrafico = useMemo(() => {
         const mapaCategorias: Record<string, number> = {};
 
@@ -277,11 +276,10 @@ export default function Dashboard() {
                     style: 'currency',
                     currency: 'BRL',
                 }),
-                // propriedades de centralização na área do arco
-                // textColor: '#ffffff',
+                textColor: '#ffffff',
                 textSize: 11,
                 fontWeight: 'bold',
-                shiftTextY: Number(porcentagem) > 50 ? +6 : 0,
+                shiftTextY: Number(porcentagem) > 50 ? 6 : 0,
             };
         });
     }, [transacoes]);
@@ -374,12 +372,10 @@ export default function Dashboard() {
                                     <PieChart
                                         data={dadosGrafico}
                                         donut
-                                        textSize={11}
-                                        fontWeight="bold"
                                         radius={75}
                                         innerRadius={45}
                                         innerCircleColor="#ffffff"
-                                        labelsPosition="outward"
+                                        centerLabelComponent={() => null}
                                     />
 
                                     {/* Legenda */}
@@ -413,7 +409,7 @@ export default function Dashboard() {
                             ) : (
                                 transacoes.map((item: any, index) => {
                                     const tipoItem = String(item.tipo || item.tipo_transacao || item.categoria?.tipo || '').toLowerCase();
-                                    const ehReceita = tipoItem === 'receita';
+                                    const ehReceita = tipoItem.includes('rec');
                                     const chaveItem = item.id ?? item.id_transacao ?? index;
                                     const nomeCategoria = extrairNomeCategoria(item);
                                     const dataFormatada = formatarDataHora(item);
@@ -448,7 +444,6 @@ export default function Dashboard() {
                                                             <Text style={styles.dataTransacao}> • {dataFormatada}</Text>
                                                         ) : null}
 
-                                                        {/* Badge do Cartão de Crédito */}
                                                         {nomeCartao && (
                                                             <View style={styles.badgeCartao}>
                                                                 <CreditCard size={10} color="#4f46e5" />
@@ -480,7 +475,7 @@ export default function Dashboard() {
                         style={styles.fab}
                         onPress={() => setModalAberto(true)}
                         activeOpacity={0.85}
-                    > 
+                    >
                         <Plus color="#ffffff" size={28} />
                     </TouchableOpacity>
 
@@ -766,7 +761,7 @@ const styles = StyleSheet.create({
     textoVermelho: {
         color: '#ef4444',
     },
-    fab: { // botão adicionar / abrir modal 
+    fab: {
         position: 'absolute',
         bottom: 24,
         right: 20,
