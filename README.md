@@ -22,8 +22,6 @@ Gerencie sua vida financeira com uma interface objetiva, segura e otimizada para
 
 </div>
 
-> 💡 Para adicionar um GIF, inclua o arquivo em `docs/screenshots/` e use `![Demonstração do aplicativo](docs/screenshots/demo.gif)`.
-
 ## 🚀 Principais Recursos
 
 - 🔐 Cadastro, login e logout com autenticação por token JWT.
