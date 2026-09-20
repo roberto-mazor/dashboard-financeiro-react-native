@@ -14,8 +14,6 @@ Gerencie sua vida financeira com uma interface objetiva, segura e otimizada para
 
 ## 📱 Demonstração
 
-Adicione aqui as capturas de tela ou um GIF do aplicativo. A tabela abaixo mantém as imagens organizadas lado a lado no GitHub:
-
 <div align="center">
 
 | Dashboard | Transações | Cartões | Perfil |
