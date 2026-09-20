@@ -6,7 +6,7 @@ Aplicativo mobile para acompanhar receitas, despesas, saldo e cartões em um ún
 Gerencie sua vida financeira com uma interface objetiva, segura e otimizada para Android, iOS e Web.
 
 <!-- Substitua os marcadores abaixo pelos badges do repositório quando disponíveis. -->
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-eab308?style=for-the-badge)
+![Status](./assets/images/)
 ![Expo](https://img.shields.io/badge/Expo%2054-000020?style=for-the-badge&logo=expo&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-16a34a?style=for-the-badge)
 
