@@ -91,6 +91,13 @@ Authorization: Bearer <token>
 
 O cliente também trata respostas `401`: remove a sessão armazenada e redireciona o usuário para a tela de login.
 
+
+## Caso de uso - UML
+
+![Caso de Uso](./c__Users_Mazor_Documents_GitHub_dashboard-financeiro-react-native_Caso-de-uso.svg)
+
+---
+
 ## 💻 Como Executar o Projeto
 
 ### Pré-requisitos
